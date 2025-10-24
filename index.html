@@ -1,0 +1,778 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pathfinder Timed Word Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Bungee&display=swap" rel="stylesheet">
+    <style>
+        /* Custom CSS for Game Aesthetics */
+        :root {
+            --primary-color: #6366f1; /* Indigo 500 */
+            --secondary-color: #f59e0b; /* Amber 500 */
+            --background-color: #f6f3f5; /* Gray 100 */
+            --success-color: #10b981; /* Emerald 500 */
+            --danger-color: #ef4444; /* Red 500 */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .game-container {
+            max-width: 1000px;
+            width: 100%;
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Layout adjustment for desktop/tablet */
+        @media (min-width: 1024px) {
+            .main-content {
+                display: flex;
+                gap: 2rem;
+                justify-content: space-between;
+            }
+            .grid-and-controls {
+                flex-grow: 1;
+                max-width: 450px; /* Keep the grid size manageable */
+            }
+            .words-list-section {
+                width: 300px; /* Dedicated width for the word list */
+                min-width: 300px;
+            }
+        }
+
+
+        #game-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            background: #d1d5db; 
+            padding: 8px;
+            border-radius: 0.75rem;
+        }
+
+        .letter-cell {
+            aspect-ratio: 1 / 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem; 
+            font-weight: 900; 
+            color: #1f2937; 
+            background-color: #e5e7eb; 
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.15s ease-in-out;
+            user-select: none;
+            box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .letter-cell.disabled {
+            pointer-events: none;
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        .letter-cell:hover:not(.selected):not(.disabled) {
+            background-color: #f9fafb; 
+            transform: translateY(-2px);
+            box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .selected {
+            background-color: var(--secondary-color) !important;
+            color: white !important;
+            transform: translateY(-4px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border: 2px solid var(--secondary-color);
+        }
+        
+        .selected-path {
+            background-color: var(--primary-color); 
+            color: white !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transform: scale(0.95);
+        }
+
+        .current-word-display {
+            font-family: 'Bungee', cursive;
+            letter-spacing: 2px;
+            font-size: 2rem;
+            min-height: 2.5rem;
+            text-align: center;
+        }
+
+        /* Styling for buttons */
+        .button-primary {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 700;
+            transition: all 0.1s;
+            cursor: pointer;
+            background-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 4px #4f46e5, 0 6px 6px rgba(0, 0, 0, 0.15); 
+        }
+        .button-primary:active {
+            box-shadow: 0 0 #4f46e5, 0 3px 3px rgba(0, 0, 0, 0.15);
+            transform: translateY(4px);
+        }
+
+        .button-secondary {
+            background-color: #dc2626; 
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 700;
+            transition: all 0.1s;
+            cursor: pointer;
+        }
+
+        .button-secondary:hover {
+            background-color: #b91c1c;
+        }
+        
+        #message-box {
+            min-height: 2.5rem;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        #target-words-list {
+            column-count: 2; /* Display words in two columns on wider screens */
+            list-style: none;
+            padding: 0;
+        }
+        
+        #target-words-list li {
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding: 2px 0;
+            break-inside: avoid;
+        }
+        
+        .found {
+            color: var(--success-color);
+            font-weight: 700;
+            text-decoration: line-through;
+        }
+        .unfound {
+            color: #4b5563; /* Gray 600 */
+        }
+        
+        .timer-red {
+            color: var(--danger-color);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+             #target-words-list {
+                column-count: 1; 
+            }
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <div class="game-container">
+        <h1 class="text-3xl font-extrabold text-gray-800 text-center">3-Minute Word Pathfinder Challenge</h1>
+        <p class="text-center text-sm text-gray-500 font-semibold mb-2">Find all the words in the list before the time runs out!</p>
+        
+
+        <!-- Top Status Bar -->
+        <div class="flex flex-col sm:flex-row justify-between items-center p-3 rounded-xl bg-gray-100 border-2 border-gray-300 gap-3 shadow-inner">
+            <button id="reset-button" class="button-secondary bg-gray-700 hover:bg-gray-800 text-white">Reset Game</button>
+            
+            <div class="flex items-center space-x-4">
+                <div class="text-lg font-medium text-gray-700">Found: <span id="word-count" class="text-indigo-600 font-bold">0</span> / <span id="possible-word-count" class="font-bold">0</span></div>
+                <div class="text-xl font-extrabold text-gray-800">TIME LEFT: <span id="timer" class="text-red-500 font-mono">03:00</span></div>
+            </div>
+            <div class="text-lg font-medium text-gray-700 hidden sm:block">Score: <span id="score" class="text-indigo-600 font-bold">0</span></div>
+        </div>
+
+        <div id="message-box" class="bg-white border-2 border-dashed border-gray-300 text-gray-600">
+            Start by clicking any letter to form a word path!
+        </div>
+
+        <!-- Main Content Area: Grid/Controls vs. Word List -->
+        <div class="main-content">
+            
+            <!-- Left Side: Grid and Controls -->
+            <div class="grid-and-controls">
+                <!-- Game Grid -->
+                <div id="game-grid">
+                    <!-- Letter cells will be generated here -->
+                </div>
+
+                <!-- Current Word Display -->
+                <div class="bg-indigo-100 p-3 rounded-lg border-2 border-indigo-300 mt-4">
+                    <p class="text-sm font-semibold text-indigo-700 text-center mb-1">Current Path</p>
+                    <div id="current-word" class="current-word-display text-indigo-800"></div>
+                </div>
+
+                <!-- Controls -->
+                <div class="flex flex-wrap justify-center gap-4 mt-4">
+                    <button id="submit-button" class="button-primary" disabled>Submit Word (Min 3 letters)</button>
+                    <button id="clear-button" class="button-secondary bg-gray-500 hover:bg-gray-600">Clear Path</button>
+                    <button id="hint-button" class="button-secondary bg-yellow-400 hover:bg-yellow-500 text-yellow-900" title="Deducts 20 points to reveal the first letter and length of an unfound word.">Get Hint (20 pts)</button>
+                </div>
+            </div>
+
+            <!-- Right Side: Target Words List -->
+            <div class="words-list-section mt-4 lg:mt-0 p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-md">
+                <h3 class="text-xl font-extrabold text-gray-800 mb-2 border-b pb-1">Target Words (<span id="possible-word-count-sidebar">0</span>)</h3>
+                <ul id="target-words-list" class="list-none space-y-1 text-sm max-h-[400px] lg:max-h-[500px] overflow-y-auto">
+                    <!-- Target words will appear here -->
+                </ul>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- Core Game Data ---
+        const GRID_SIZE = 5;
+        const MIN_WORD_LENGTH = 3; 
+        const HINT_COST = 20;      
+        const TIME_LIMIT_SECONDS = 180; // 3 minutes hard limit
+        
+        // Massive set of common English words (4-10 letters) to maximize possible words
+        const DICTIONARY = new Set([
+            "ABLE", "ACID", "ACRE", "ACTS", "ADAM", "AGES", "AGREED", "AIRS", "ALIVE", "ALLY",
+            "ALONE", "ALSO", "AMONG", "ANGLE", "ANOTHER", "AREA", "ARMY", "ASIDE", "ASSIST", "AWAY",
+            "BABY", "BACK", "BALL", "BANK", "BASE", "BATTLE", "BEAR", "BEAT", "BEAUTY", "BEDS",
+            "BEGAN", "BEING", "BELIEF", "BEST", "BETTER", "BILL", "BIRD", "BITS", "BLACK", "BLOOD",
+            "BLUE", "BOAT", "BODY", "BOOK", "BORN", "BOTH", "BOY", "BREAK", "BRING", "BROAD",
+            "BUILD", "BUNCH", "BURN", "BUTTER", "CALL", "CAME", "CANVAS", "CARE", "CASE", "CATCH",
+            "CAUSE", "CELL", "CENTER", "CHANCE", "CHANGE", "CHARGE", "CHASE", "CHIEF", "CHILD", "CHILL",
+            "CHOOSE", "CITY", "CIVIL", "CLAIM", "CLEAR", "CLOSE", "CLOUD", "CODE", "COLD", "COME",
+            "COMMON", "COMPLETE", "CONTROL", "COOK", "CORNER", "COST", "COULD", "COUNT", "COUNTRY", "COURSE",
+            "COURT", "COVER", "CRASH", "CREATE", "CRIME", "CROSS", "CROWD", "CUP", "CURE", "CUT",
+            "DANGER", "DARK", "DATE", "DAUGHTER", "DAY", "DEAD", "DEAL", "DEAR", "DEATH", "DEBATE",
+            "DECIDE", "DEEP", "DEFENSE", "DEGREE", "DESIGN", "DETAIL", "DEVELOP", "DIE", "DIFFER", "DIGITAL",
+            "DIRECT", "DISTANCE", "DITCH", "DOOR", "DOUBT", "DOWN", "DRAG", "DRAW", "DREAM", "DRINK",
+            "DRIVE", "DROP", "DRY", "EACH", "EARLY", "EARN", "EARTH", "EAST", "EASY", "EDGE",
+            "EFFECT", "EIGHT", "ELECT", "EMPIRE", "END", "ENERGY", "ENGINE", "ENJOY", "ENOUGH", "ENTER",
+            "ENTIRE", "EQUALLY", "ERROR", "EVEN", "EVER", "EVERY", "EXACT", "EXAMPLE", "EXCEPT", "EXIST",
+            "EXPECT", "EYE", "FACE", "FACT", "FAIL", "FALL", "FAMILY", "FAR", "FARM", "FAST",
+            "FATHER", "FEAR", "FEDERAL", "FEEL", "FEW", "FIELD", "FIGHT", "FIGURE", "FILL", "FINAL",
+            "FIND", "FINE", "FINGER", "FIRE", "FIRST", "FISH", "FIVE", "FLAT", "FLIGHT", "FLOOR",
+            "FLY", "FOLLOW", "FOOD", "FOOT", "FORCE", "FOREIGN", "FORM", "FORWARD", "FOUR", "FREE",
+            "FRESH", "FRIEND", "FROM", "FRONT", "FULL", "FUN", "GAME", "GARDEN", "GAS", "GENERAL",
+            "GET", "GIRL", "GIVE", "GLASS", "GOAL", "GOD", "GOLD", "GOOD", "GOVERN", "GREAT",
+            "GREEN", "GROUND", "GROUP", "GROW", "GUN", "GUY", "HABIT", "HALF", "HALL", "HAND",
+            "HANG", "HAPPEN", "HAPPY", "HARD", "HAVE", "HEAD", "HEAR", "HEART", "HEAVY", "HELD",
+            "HELLO", "HELP", "HERE", "HIGH", "HIM", "HISTORY", "HIT", "HOLD", "HOME", "HOPE",
+            "HOTEL", "HOUR", "HOUSE", "HOW", "HUMAN", "HURT", "IDEA", "IF", "IMAGE", "IMPACT",
+            "IMPORT", "INCH", "INCLUDE", "INDEED", "INFO", "INSIDE", "INSTEAD", "IRON", "ISLAND", "ISSUE",
+            "ITEM", "ITSELF", "JACKET", "JOB", "JOIN", "JOKE", "JUDGE", "JUMP", "JUST", "KEEP",
+            "KEY", "KICK", "KID", "KILL", "KIND", "KING", "KNOW", "LACK", "LADY", "LAND",
+            "LANGUAGE", "LARGE", "LAST", "LATE", "LAUGH", "LAW", "LAY", "LEAD", "LEARN", "LEAST",
+            "LEAVE", "LEFT", "LEG", "LEGAL", "LEVEL", "LIE", "LIFE", "LIGHT", "LIKE", "LINE",
+            "LIST", "LITTLE", "LIVE", "LOCAL", "LONG", "LOOK", "LOSE", "LOSS", "LOT", "LOVE",
+            "LOW", "MACHINE", "MAIN", "MAJOR", "MAKE", "MAN", "MANAGE", "MANY", "MARKET", "MARRIED",
+            "MASTER", "MATCH", "MATTER", "MAXIMUM", "MAYBE", "MEAL", "MEAN", "MEET", "MEMBER", "MEMORY",
+            "MENTION", "MESSAGE", "MIDDLE", "MIGHT", "MILE", "MILK", "MILLION", "MIND", "MINE", "MINUTE",
+            "MISS", "MODEL", "MODERN", "MOMENT", "MONEY", "MONTH", "MORE", "MORNING", "MOST", "MOTHER",
+            "MOUNTAIN", "MOUTH", "MOVE", "MUCH", "MUSIC", "MUST", "NAME", "NARROW", "NATION", "NATURE",
+            "NEAR", "NEARLY", "NEED", "NEITHER", "NERVOUS", "NEVER", "NEW", "NEXT", "NICE", "NIGHT",
+            "NINE", "NOBODY", "NOISE", "NONE", "NORMAL", "NORTH", "NOTE", "NOTHING", "NOW", "NUMBER",
+            "OCCUR", "OFFER", "OFFICE", "OH", "OLD", "ONCE", "ONE", "ONLY", "OPEN", "OPERATION",
+            "OPINION", "OPTION", "ORDER", "OTHER", "OUT", "OUTSIDE", "OWN", "OWNER", "PAGE", "PAINT",
+            "PAIR", "PAPER", "PARENT", "PARK", "PART", "PARTY", "PASS", "PAST", "PATH", "PAY",
+            "PEACE", "PEOPLE", "PERFECT", "PERIOD", "PERSON", "PHONE", "PHOTO", "PICK", "PICTURE", "PIECE",
+            "PLACE", "PLAN", "PLAY", "POINT", "POLICE", "POLICY", "POLITICAL", "POOR", "POSITION", "POWER",
+            "PRACTICE", "PREPARE", "PRESENT", "PRESS", "PRETTY", "PRICE", "PRIVATE", "PROBABLY", "PROBLEM", "PROCESS",
+            "PRODUCE", "PROJECT", "PROMPT", "PROVE", "PUBLIC", "PULL", "PUSH", "PUT", "QUALITY", "QUESTION",
+            "QUICK", "QUIET", "QUITE", "RADIO", "RANGE", "RATE", "RATHER", "REACH", "READ", "READY",
+            "REAL", "RECENT", "RECORD", "RED", "REDUCE", "REFLECT", "REGION", "REMOVE", "REPORT", "REQUIRE",
+            "RESEARCH", "RESOURCE", "RESULT", "RETURN", "RICH", "RIGHT", "RING", "RISE", "RIVER", "ROAD",
+            "ROCK", "ROLE", "ROOM", "RULE", "RUN", "SAME", "SAVE", "SAY", "SCENE", "SCHOOL",
+            "SCIENCE", "SCORE", "SEA", "SEASON", "SECOND", "SECRET", "SECTION", "SECURITY", "SEE", "SEEM",
+            "SELL", "SEND", "SENSE", "SERIES", "SERIOUS", "SERVE", "SET", "SEVEN", "SEVERAL", "SHAKE",
+            "SHARE", "SHE", "SHEET", "SHIP", "SHOOT", "SHORT", "SHOT", "SHOULD", "SHOW", "SIDE",
+            "SIGN", "SIMPLE", "SINGLE", "SISTER", "SITE", "SIX", "SIZE", "SKILL", "SKIN", "SMALL",
+            "SMILE", "SO", "SOCIAL", "SOCIETY", "SOLVE", "SOME", "SOMEONE", "SOMETHING", "SOMETIMES", "SON",
+            "SONG", "SOON", "SORRY", "SORT", "SOUND", "SOUTH", "SPACE", "SPEAK", "SPECIAL", "SPEED",
+            "SPEND", "SPORT", "SPRING", "SQUARE", "STAFF", "STAGE", "STAND", "STAR", "START", "STATE",
+            "STAY", "STEP", "STILL", "STOCK", "STONE", "STOP", "STORY", "STREET", "STRONG", "STUDENT",
+            "STUDY", "STYLE", "SUBJECT", "SUCCESS", "SUCH", "SUDDEN", "SUFFER", "SUGGEST", "SUMMER", "SUPPORT",
+            "SURE", "SYSTEM", "TABLE", "TAKE", "TALK", "TASK", "TAX", "TEACH", "TEAM", "TELL",
+            "TEN", "TEND", "TERM", "TEST", "THAN", "THAT", "THEIR", "THEM", "THEN", "THERE",
+            "THESE", "THEY", "THING", "THINK", "THIRD", "THIS", "THOSE", "THOUGH", "THREE", "THROUGH",
+            "THROW", "TODAY", "TOGETHER", "TONIGHT", "TOO", "TOP", "TOTAL", "TOUCH", "TOWN", "TRADE",
+            "TRAIN", "TRAVEL", "TREAT", "TREE", "TRIAL", "TRIBAL", "TROUBLE", "TRUE", "TRUST", "TRUTH",
+            "TRY", "TURN", "TWO", "TYPE", "UNDER", "UNDERSTAND", "UNION", "UNIT", "UNTIL", "UP",
+            "UPON", "USE", "USUALLY", "VALUE", "VARIOUS", "VERY", "VIDEO", "VIEW", "VISIT", "VOICE",
+            "WAIT", "WALK", "WALL", "WANT", "WAR", "WATCH", "WATER", "WAY", "WE", "WEAR",
+            "WEEK", "WEIGHT", "WELL", "WEST", "WHAT", "WHATEVER", "WHEN", "WHERE", "WHICH", "WHILE",
+            "WHITE", "WHO", "WHOLE", "WHY", "WILL", "WIND", "WINDOW", "WISH", "WITH", "WITHIN",
+            "WITHOUT", "WOMAN", "WONDER", "WORD", "WORK", "WORLD", "WORRY", "WORTH", "WOULD", "WRITE",
+            "WRONG", "YARD", "YES", "YET", "YOU", "YOUNG", "YOUR", "YOURSELF", "ZERO", "ZONES"
+        ]);
+        const LETTER_FREQUENCIES = "EEEEEEEEEEEEEEEEAAAAAAAASSSRRRTTTIIIINNNNNNDDDDOOOCCLLUUPPMMBBGGHHFFYYKKVVWXZZJQ"; 
+
+        // --- Game State ---
+        let grid = []; 
+        let score = 0;
+        let selectedPath = []; 
+        let currentWord = "";
+        let foundWords = new Set();
+        let allPossibleWords = new Set(); 
+        let isGameActive = false; 
+
+        // --- Timing State ---
+        let timerInterval = null;
+        let elapsedSeconds = 0;
+        
+        // --- DOM Elements ---
+        const gridElement = document.getElementById('game-grid');
+        const currentWordElement = document.getElementById('current-word');
+        const scoreElement = document.getElementById('score');
+        const timerElement = document.getElementById('timer');
+        const targetWordsListElement = document.getElementById('target-words-list');
+        const wordCountElement = document.getElementById('word-count');
+        const possibleWordCountElement = document.getElementById('possible-word-count');
+        const possibleWordCountSidebar = document.getElementById('possible-word-count-sidebar');
+        const messageBox = document.getElementById('message-box');
+        const submitButton = document.getElementById('submit-button');
+        const clearButton = document.getElementById('clear-button');
+        const hintButton = document.getElementById('hint-button');
+
+        // --- Timer Functions ---
+
+        /** Formats total seconds into MM:SS. */
+        function formatTime(totalSeconds) {
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        /** Updates the timer display every second and checks for game over. */
+        function updateTimerDisplay() {
+            const remainingSeconds = TIME_LIMIT_SECONDS - elapsedSeconds;
+
+            if (remainingSeconds <= 0) {
+                timerElement.textContent = "00:00";
+                timerElement.classList.remove('timer-red');
+                endGame(false); // Time's up!
+                return;
+            }
+            
+            timerElement.textContent = formatTime(remainingSeconds);
+
+            if (remainingSeconds <= 30) {
+                timerElement.classList.add('timer-red');
+            } else {
+                timerElement.classList.remove('timer-red');
+            }
+
+            elapsedSeconds++;
+        }
+
+        /** Starts the stopwatch timer. */
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            elapsedSeconds = 0;
+            updateTimerDisplay();
+            timerInterval = setInterval(updateTimerDisplay, 1000);
+        }
+
+        /** Stops the stopwatch timer and returns the final time string. */
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        // --- Utility Functions ---
+
+        /** Generates a random letter based on frequency weights. */
+        function getRandomLetter() {
+            const index = Math.floor(Math.random() * LETTER_FREQUENCIES.length);
+            return LETTER_FREQUENCIES[index];
+        }
+
+        /** Creates the initial GRID_SIZE x GRID_SIZE letter grid. */
+        function generateGrid() {
+            const newGrid = [];
+            for (let r = 0; r < GRID_SIZE; r++) {
+                newGrid[r] = [];
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    newGrid[r][c] = {
+                        letter: getRandomLetter(),
+                        elementId: `cell-${r}-${c}`
+                    };
+                }
+            }
+            return newGrid;
+        }
+
+        /** Checks if two grid positions are adjacent (horizontal, vertical, or diagonal). */
+        function isAdjacent(r1, c1, r2, c2) {
+            const rowDiff = Math.abs(r1 - r2);
+            const colDiff = Math.abs(c1 - c2);
+            return (rowDiff <= 1 && colDiff <= 1) && (rowDiff !== 0 || colDiff !== 0);
+        }
+
+        /** Displays a message to the user with optional styling. */
+        function showMessage(text, type = 'info') {
+            messageBox.textContent = text;
+            messageBox.className = 'p-2 rounded-lg text-center font-semibold';
+
+            switch(type) {
+                case 'success':
+                    messageBox.classList.add('bg-green-100', 'border-green-400', 'text-green-700');
+                    break;
+                case 'error':
+                    messageBox.classList.add('bg-red-100', 'border-red-400', 'text-red-700');
+                    break;
+                case 'hint':
+                    messageBox.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-700');
+                    break;
+                case 'win':
+                    messageBox.classList.add('bg-indigo-600', 'border-indigo-800', 'text-white', 'font-extrabold');
+                    break;
+                case 'lose':
+                    messageBox.classList.add('bg-red-600', 'border-red-800', 'text-white', 'font-extrabold');
+                    break;
+                default:
+                    messageBox.classList.add('bg-white', 'border-2', 'border-dashed', 'border-gray-300', 'text-gray-600');
+                    break;
+            }
+        }
+
+        /** Renders the grid HTML and attaches event listeners. */
+        function renderGrid(isActive) {
+            gridElement.innerHTML = '';
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cell = grid[r][c];
+                    const cellDiv = document.createElement('div');
+                    cellDiv.className = 'letter-cell';
+                    if (!isActive) {
+                         cellDiv.classList.add('disabled');
+                    }
+                    cellDiv.id = cell.elementId;
+                    cellDiv.textContent = cell.letter;
+                    cellDiv.dataset.row = r;
+                    cellDiv.dataset.col = c;
+                    cellDiv.addEventListener('click', handleLetterClick);
+                    gridElement.appendChild(cellDiv);
+                }
+            }
+        }
+
+        /**
+         * Depth First Search to find all valid words in the current grid.
+         */
+        function findAllWords(currentGrid) {
+            const found = new Set();
+            const ROWS = currentGrid.length;
+            const COLS = currentGrid[0].length;
+
+            function search(r, c, word, visited) {
+                if (r < 0 || r >= ROWS || c < 0 || c >= COLS || visited[r][c]) {
+                    return;
+                }
+
+                const newWord = word + currentGrid[r][c].letter;
+                if (newWord.length > 10) return;
+
+                visited[r][c] = true;
+
+                if (newWord.length >= MIN_WORD_LENGTH && DICTIONARY.has(newWord)) {
+                    found.add(newWord);
+                }
+
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        if (dr === 0 && dc === 0) continue;
+                        search(r + dr, c + dc, newWord, visited);
+                    }
+                }
+
+                visited[r][c] = false;
+            }
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const visited = Array(ROWS).fill(0).map(() => Array(COLS).fill(false)); 
+                    search(r, c, "", visited);
+                }
+            }
+            return found;
+        }
+        
+        /** Generates the initial list of target words in the sidebar. */
+        function populateTargetWordsList() {
+            targetWordsListElement.innerHTML = '';
+            const sortedWords = Array.from(allPossibleWords).sort((a, b) => {
+                // Sort primarily by length (longest first), then alphabetically
+                if (b.length !== a.length) {
+                    return b.length - a.length;
+                }
+                return a.localeCompare(b);
+            });
+
+            sortedWords.forEach(word => {
+                const listItem = document.createElement('li');
+                listItem.id = `target-word-${word}`;
+                listItem.className = 'unfound';
+                listItem.innerHTML = `<strong>${word}</strong> (${word.length}) <span id="status-${word}">❌</span>`;
+                targetWordsListElement.appendChild(listItem);
+            });
+        }
+
+        /** Handles a click on a letter cell. */
+        function handleLetterClick(event) {
+            if (!isGameActive) return;
+
+            const cellElement = event.currentTarget;
+            const r = parseInt(cellElement.dataset.row);
+            const c = parseInt(cellElement.dataset.col);
+            const letter = cellElement.textContent;
+            const isAlreadyInPath = selectedPath.some(p => p.row === r && p.col === c);
+
+            if (selectedPath.length === 0) {
+                selectCell(r, c, letter, cellElement);
+                showMessage("Path started. Keep clicking adjacent letters.");
+            } else {
+                const lastSelected = selectedPath[selectedPath.length - 1];
+                if (isAdjacent(r, c, lastSelected.row, lastSelected.col)) {
+                    if (isAlreadyInPath) {
+                        if (r === lastSelected.row && c === lastSelected.col) {
+                            // Backtracking logic
+                            const popped = selectedPath.pop();
+                            const poppedElement = document.getElementById(grid[popped.row][popped.col].elementId);
+                            poppedElement.classList.remove('selected', 'selected-path');
+                            if (selectedPath.length > 0) {
+                                const newLast = selectedPath[selectedPath.length - 1];
+                                document.getElementById(grid[newLast.row][newLast.col].elementId).classList.remove('selected-path');
+                                document.getElementById(grid[newLast.row][newLast.col].elementId).classList.add('selected'); 
+                            }
+                            updateCurrentWord();
+                            return;
+                        }
+                        
+                        showMessage("Letter is already used in this path. Choose a new adjacent letter.", 'error');
+                        return;
+                    }
+                    selectCell(r, c, letter, cellElement);
+                } else {
+                    showMessage("Selection must be adjacent to the last letter!", 'error');
+                }
+            }
+        }
+
+        /** Internal function to update state and UI when a cell is selected. */
+        function selectCell(r, c, letter, cellElement) {
+            selectedPath.push({ row: r, col: c });
+
+            cellElement.classList.remove('selected-path');
+            cellElement.classList.add('selected');
+
+            if (selectedPath.length > 1) {
+                const prevCell = selectedPath[selectedPath.length - 2];
+                const prevElement = document.getElementById(grid[prevCell.row][prevCell.col].elementId);
+                prevElement.classList.remove('selected');
+                prevElement.classList.add('selected-path');
+            }
+
+            updateCurrentWord();
+        }
+
+        /** Recalculates the current word from the path and updates the display/buttons. */
+        function updateCurrentWord() {
+            currentWord = selectedPath.map(p => grid[p.row][p.col].letter).join('');
+            currentWordElement.textContent = currentWord;
+
+            const isWordLongEnough = currentWord.length >= MIN_WORD_LENGTH;
+            submitButton.disabled = !isWordLongEnough || !isGameActive;
+            submitButton.textContent = isWordLongEnough
+                ? `Submit Word (${currentWord.length})`
+                : `Submit Word (Min ${MIN_WORD_LENGTH} letters)`;
+        }
+
+        /** Clears the current word path and resets selection state. */
+        function clearPath() {
+            if (!isGameActive) return;
+            selectedPath.forEach(p => {
+                const element = document.getElementById(grid[p.row][p.col].elementId);
+                element.classList.remove('selected', 'selected-path');
+            });
+            selectedPath = [];
+            currentWord = "";
+            currentWordElement.textContent = "";
+            submitButton.disabled = true;
+            submitButton.textContent = `Submit Word (Min ${MIN_WORD_LENGTH} letters)`;
+            showMessage("Path cleared. Start a new word!");
+        }
+
+        /** Checks the current word and updates score/found words. */
+        function checkWord() {
+            if (!isGameActive) return;
+
+            const word = currentWord.toUpperCase();
+
+            if (word.length < MIN_WORD_LENGTH) {
+                showMessage(`Word is too short! Must be at least ${MIN_WORD_LENGTH} letters.`, 'error');
+            } else if (foundWords.has(word)) {
+                showMessage(`"${word}" already found! Look for a different one.`, 'error');
+            } else if (DICTIONARY.has(word) && allPossibleWords.has(word)) {
+                foundWords.add(word);
+                const points = word.length * 10;
+                score += points;
+
+                // UI Updates
+                scoreElement.textContent = score;
+                wordCountElement.textContent = foundWords.size;
+                possibleWordCountElement.textContent = `${foundWords.size} / ${allPossibleWords.size}`;
+
+                // Update the sidebar word list status
+                const listItem = document.getElementById(`target-word-${word}`);
+                if (listItem) {
+                    listItem.classList.remove('unfound');
+                    listItem.classList.add('found');
+                    document.getElementById(`status-${word}`).textContent = '✅';
+                }
+
+                showMessage(`FOUND! "${word}" for +${points} points!`, 'success');
+                
+                clearPath(); 
+
+                // Check for completion (WIN)
+                if (foundWords.size === allPossibleWords.size) {
+                    endGame(true);
+                }
+
+            } else {
+                showMessage(`INVALID WORD! "${word}" is not in the dictionary or is not possible in this grid.`, 'error');
+            }
+        }
+        
+        /** Provides a hint (starting letter and length) at a cost. */
+        function giveHint() {
+            if (!isGameActive) return;
+            
+            if (score < HINT_COST) {
+                showMessage(`You need ${HINT_COST} points to buy a hint! Find more words!`, 'error');
+                return;
+            }
+
+            const unfoundWords = Array.from(allPossibleWords).filter(word => !foundWords.has(word));
+
+            if (unfoundWords.length === 0) {
+                showMessage("Amazing! You've found all possible words in this grid!", 'success');
+                return;
+            }
+
+            unfoundWords.sort((a, b) => b.length - a.length); 
+            const hintWord = unfoundWords[0];
+
+            score -= HINT_COST;
+            scoreElement.textContent = score;
+
+            showMessage(
+                `Hint used! (${HINT_COST} pts deducted). Unfound Word: Starts with "${hintWord[0]}" and is ${hintWord.length} letters long.`,
+                'hint'
+            );
+        }
+
+        /** Ends the game (win or lose) and displays final results. */
+        function endGame(didWin) {
+            stopTimer();
+            isGameActive = false;
+            renderGrid(false); // Disable grid interaction
+            submitButton.disabled = true;
+            clearButton.disabled = true;
+            hintButton.disabled = true;
+            timerElement.classList.remove('timer-red');
+
+            const missedWords = Array.from(allPossibleWords).filter(word => !foundWords.has(word));
+            const finalTime = formatTime(elapsedSeconds - 1); // -1 because the clock ticks one too far
+
+            if (didWin) {
+                showMessage(`YOU WON! You found all ${allPossibleWords.size} words in ${finalTime}!`, 'win');
+            } else {
+                // Time ran out
+                const missedCount = missedWords.length;
+                showMessage(`TIME UP! You missed ${missedCount} word${missedCount === 1 ? '' : 's'}. Final Score: ${score}.`, 'lose');
+                
+                // Highlight missed words in the list
+                missedWords.forEach(word => {
+                    const listItem = document.getElementById(`target-word-${word}`);
+                    if (listItem) {
+                        listItem.style.backgroundColor = '#fee2e2'; // Red 100
+                        listItem.style.borderLeft = '4px solid var(--danger-color)';
+                    }
+                });
+            }
+        }
+
+
+        /** Initializes or resets the entire game state. */
+        function initGame() {
+            // 1. Generate New Grid
+            grid = generateGrid();
+            
+            // 2. Find all possible words (for word count)
+            allPossibleWords = findAllWords(grid);
+            
+            // 3. Reset Game State
+            score = 0;
+            currentWord = "";
+            foundWords = new Set();
+            selectedPath = [];
+            isGameActive = true;
+
+            // 4. Reset UI
+            scoreElement.textContent = '0';
+            currentWordElement.textContent = '';
+            wordCountElement.textContent = '0';
+            possibleWordCountElement.textContent = `0 / ${allPossibleWords.size}`;
+            possibleWordCountSidebar.textContent = allPossibleWords.size;
+            timerElement.textContent = formatTime(TIME_LIMIT_SECONDS);
+            submitButton.disabled = true;
+            submitButton.textContent = `Submit Word (Min ${MIN_WORD_LENGTH} letters)`;
+            clearButton.disabled = false;
+            hintButton.disabled = false;
+
+            showMessage(`Challenge started! Find all ${allPossibleWords.size} words in 3:00.`);
+
+            // 5. Populate the sidebar list and Render Grid
+            populateTargetWordsList();
+            renderGrid(true);
+            startTimer();
+        }
+
+        // --- Event Listeners and Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            submitButton.addEventListener('click', checkWord);
+            clearButton.addEventListener('click', clearPath);
+            document.getElementById('reset-button').addEventListener('click', initGame);
+            hintButton.addEventListener('click', giveHint);
+
+            initGame();
+        });
+    </script>
+</body>
+</html>
