@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pathfinder Timed Word Challenge</title>
+    <title>Word Pathfinder Level Challenge</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Bungee&display=swap" rel="stylesheet">
     <style>
@@ -25,6 +24,13 @@
             align-items: flex-start;
             min-height: 100vh;
             padding: 20px;
+        }
+
+        .main-container {
+            max-width: 1200px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
         }
 
         .game-container {
@@ -56,6 +62,58 @@
             }
         }
 
+        /* Level Select specific styles */
+        .level-button {
+            aspect-ratio: 1 / 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.25rem;
+            font-weight: 700;
+            border-radius: 0.75rem;
+            transition: all 0.2s;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #4b5563;
+            border: 2px solid #4b5563;
+        }
+        .level-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 #4b5563;
+        }
+        .level-button:active:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #4b5563;
+        }
+        .level-button:disabled {
+            background-color: #e5e7eb;
+            color: #9ca3af;
+            cursor: not-allowed;
+            box-shadow: none;
+            border-color: #9ca3af;
+        }
+        .level-button.unlocked {
+            background-color: var(--primary-color);
+            color: white;
+            box-shadow: 0 4px 0 #4f46e5;
+            border-color: #4f46e5;
+        }
+        .level-button.master {
+            background-color: var(--secondary-color);
+            color: #78350f;
+            box-shadow: 0 4px 0 #d97706;
+            border-color: #d97706;
+        }
+        .level-button.current-level {
+            border: 4px solid var(--danger-color);
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
 
         #game-grid {
             display: grid;
@@ -82,178 +140,144 @@
             box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.1);
         }
 
-        .letter-cell.disabled {
-            pointer-events: none;
-            opacity: 0.6;
-            cursor: default;
-        }
-
-        .letter-cell:hover:not(.selected):not(.disabled) {
-            background-color: #f9fafb; 
-            transform: translateY(-2px);
-            box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .selected {
-            background-color: var(--secondary-color) !important;
-            color: white !important;
-            transform: translateY(-4px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            border: 2px solid var(--secondary-color);
-        }
-        
-        .selected-path {
-            background-color: var(--primary-color); 
-            color: white !important;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            transform: scale(0.95);
-        }
-
-        .current-word-display {
-            font-family: 'Bungee', cursive;
-            letter-spacing: 2px;
-            font-size: 2rem;
-            min-height: 2.5rem;
-            text-align: center;
-        }
+        /* Interaction styles for letter cells (unchanged from previous) */
+        .letter-cell.disabled { pointer-events: none; opacity: 0.6; cursor: default; }
+        .letter-cell:hover:not(.selected):not(.disabled) { background-color: #f9fafb; transform: translateY(-2px); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1); }
+        .selected { background-color: var(--secondary-color) !important; color: white !important; transform: translateY(-4px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); border: 2px solid var(--secondary-color); }
+        .selected-path { background-color: var(--primary-color); color: white !important; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); transform: scale(0.95); }
 
         /* Styling for buttons */
-        .button-primary {
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 700;
-            transition: all 0.1s;
-            cursor: pointer;
-            background-color: var(--primary-color);
-            color: white;
-            box-shadow: 0 4px #4f46e5, 0 6px 6px rgba(0, 0, 0, 0.15); 
-        }
-        .button-primary:active {
-            box-shadow: 0 0 #4f46e5, 0 3px 3px rgba(0, 0, 0, 0.15);
-            transform: translateY(4px);
-        }
-
-        .button-secondary {
-            background-color: #dc2626; 
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 700;
-            transition: all 0.1s;
-            cursor: pointer;
-        }
-
-        .button-secondary:hover {
-            background-color: #b91c1c;
-        }
+        .button-primary { padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 700; transition: all 0.1s; cursor: pointer; background-color: var(--primary-color); color: white; box-shadow: 0 4px #4f46e5, 0 6px 6px rgba(0, 0, 0, 0.15); }
+        .button-primary:active { box-shadow: 0 0 #4f46e5, 0 3px 3px rgba(0, 0, 0, 0.15); transform: translateY(4px); }
+        .button-secondary { background-color: #dc2626; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 700; transition: all 0.1s; cursor: pointer; }
+        .button-secondary:hover { background-color: #b91c1c; }
         
-        #message-box {
-            min-height: 2.5rem;
-            padding: 0.5rem;
-            border-radius: 0.5rem;
-            text-align: center;
-            font-weight: 600;
-        }
-
-        #target-words-list {
-            column-count: 2; /* Display words in two columns on wider screens */
-            list-style: none;
-            padding: 0;
-        }
+        #message-box { min-height: 2.5rem; padding: 0.5rem; border-radius: 0.5rem; text-align: center; font-weight: 600; }
+        #target-words-list { column-count: 2; list-style: none; padding: 0; }
+        #target-words-list li { font-size: 0.9rem; font-weight: 500; padding: 2px 0; break-inside: avoid; }
+        .found { color: var(--success-color); font-weight: 700; text-decoration: line-through; }
+        .unfound { color: #4b5563; }
+        .timer-red { color: var(--danger-color); }
         
-        #target-words-list li {
-            font-size: 0.9rem;
-            font-weight: 500;
-            padding: 2px 0;
-            break-inside: avoid;
-        }
-        
-        .found {
-            color: var(--success-color);
-            font-weight: 700;
-            text-decoration: line-through;
-        }
-        .unfound {
-            color: #4b5563; /* Gray 600 */
-        }
-        
-        .timer-red {
-            color: var(--danger-color);
-        }
+        .master-level-ui { background-color: #fef3c7; border-color: #f59e0b !important; }
 
         /* Responsive adjustments */
         @media (max-width: 640px) {
-             #target-words-list {
-                column-count: 1; 
-            }
+             #target-words-list { column-count: 1; }
         }
     </style>
 </head>
 <body class="p-4">
 
-    <div class="game-container">
-        <h1 class="text-3xl font-extrabold text-gray-800 text-center">3-Minute Word Pathfinder Challenge</h1>
-        <p class="text-center text-sm text-gray-500 font-semibold mb-2">Find all the words in the list before the time runs out!</p>
-        
+    <div class="main-container">
 
-        <!-- Top Status Bar -->
-        <div class="flex flex-col sm:flex-row justify-between items-center p-3 rounded-xl bg-gray-100 border-2 border-gray-300 gap-3 shadow-inner">
-            <button id="reset-button" class="button-secondary bg-gray-700 hover:bg-gray-800 text-white">Reset Game</button>
-            
-            <div class="flex items-center space-x-4">
-                <div class="text-lg font-medium text-gray-700">Found: <span id="word-count" class="text-indigo-600 font-bold">0</span> / <span id="possible-word-count" class="font-bold">0</span></div>
-                <div class="text-xl font-extrabold text-gray-800">TIME LEFT: <span id="timer" class="text-red-500 font-mono">03:00</span></div>
-            </div>
-            <div class="text-lg font-medium text-gray-700 hidden sm:block">Score: <span id="score" class="text-indigo-600 font-bold">0</span></div>
+        <!-- 1. LOADING VIEW -->
+        <div id="loading-view" class="flex flex-col items-center justify-center p-10 bg-white rounded-xl shadow-lg h-[400px] w-[600px]">
+            <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-4 text-xl font-semibold text-gray-700">Loading Game Progress...</p>
         </div>
 
-        <div id="message-box" class="bg-white border-2 border-dashed border-gray-300 text-gray-600">
-            Start by clicking any letter to form a word path!
+        <!-- 2. LEVEL SELECT VIEW -->
+        <div id="level-select-view" class="game-container hidden">
+            <h1 class="text-4xl font-extrabold text-gray-800 text-center mb-4">Word Pathfinder Challenges</h1>
+            <div class="flex flex-wrap justify-between items-center p-3 rounded-xl bg-indigo-50 border-2 border-indigo-300 gap-3 shadow-inner">
+                 <p class="text-lg font-medium text-gray-700">Highest Unlocked Level: <span id="highest-unlocked-display" class="text-indigo-600 font-bold">1</span></p>
+                 <p class="text-lg font-medium text-gray-700">Total Score: <span id="total-score-display" class="text-indigo-600 font-bold">0</span></p>
+            </div>
+            
+            <div id="level-grid" class="grid grid-cols-5 sm:grid-cols-10 gap-3 p-4 bg-gray-50 rounded-lg border">
+                <!-- Level buttons will be generated here -->
+            </div>
+            
+            <div id="level-details-box" class="p-4 bg-white border border-dashed border-gray-300 rounded-lg text-center min-h-[5rem]">
+                <p class="text-lg font-semibold text-gray-600">Select a level to start the challenge!</p>
+            </div>
         </div>
 
-        <!-- Main Content Area: Grid/Controls vs. Word List -->
-        <div class="main-content">
+
+        <!-- 3. GAME VIEW (Existing Game UI) -->
+        <div id="game-view" class="game-container hidden">
             
-            <!-- Left Side: Grid and Controls -->
-            <div class="grid-and-controls">
-                <!-- Game Grid -->
-                <div id="game-grid">
-                    <!-- Letter cells will be generated here -->
-                </div>
-
-                <!-- Current Word Display -->
-                <div class="bg-indigo-100 p-3 rounded-lg border-2 border-indigo-300 mt-4">
-                    <p class="text-sm font-semibold text-indigo-700 text-center mb-1">Current Path</p>
-                    <div id="current-word" class="current-word-display text-indigo-800"></div>
-                </div>
-
-                <!-- Controls -->
-                <div class="flex flex-wrap justify-center gap-4 mt-4">
-                    <button id="submit-button" class="button-primary" disabled>Submit Word (Min 3 letters)</button>
-                    <button id="clear-button" class="button-secondary bg-gray-500 hover:bg-gray-600">Clear Path</button>
-                    <button id="hint-button" class="button-secondary bg-yellow-400 hover:bg-yellow-500 text-yellow-900" title="Deducts 20 points to reveal the first letter and length of an unfound word.">Get Hint (20 pts)</button>
-                </div>
+            <!-- Header and Back Button -->
+            <div class="flex justify-between items-center mb-2">
+                <button id="back-to-levels-button" class="button-secondary bg-gray-500 hover:bg-gray-600 text-white text-sm py-2 px-3 flex items-center space-x-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                    <span>Back to Levels</span>
+                </button>
+                <h1 class="text-3xl font-extrabold text-gray-800">Word Pathfinder</h1>
             </div>
 
-            <!-- Right Side: Target Words List -->
-            <div class="words-list-section mt-4 lg:mt-0 p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-md">
-                <h3 class="text-xl font-extrabold text-gray-800 mb-2 border-b pb-1">Target Words (<span id="possible-word-count-sidebar">0</span>)</h3>
-                <ul id="target-words-list" class="list-none space-y-1 text-sm max-h-[400px] lg:max-h-[500px] overflow-y-auto">
-                    <!-- Target words will appear here -->
-                </ul>
+            <!-- Top Status Bar -->
+            <div id="status-bar" class="flex flex-col sm:flex-row justify-between items-center p-3 rounded-xl bg-gray-100 border-2 border-gray-300 gap-3 shadow-inner">
+                <div class="flex items-center space-x-4">
+                    <div class="text-xl font-extrabold text-gray-800">LEVEL: <span id="current-level" class="text-indigo-600 font-mono">1</span>/50</div>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <div class="text-lg font-medium text-gray-700">Found: <span id="word-count" class="text-indigo-600 font-bold">0</span> / <span id="required-word-count" class="font-bold">0</span></div>
+                    <div class="text-xl font-extrabold text-gray-800">TIME: <span id="timer" class="text-red-500 font-mono">03:00</span></div>
+                </div>
+                <div class="text-lg font-medium text-gray-700">Score: <span id="level-score" class="text-indigo-600 font-bold">0</span></div>
             </div>
 
+            <div id="message-box" class="bg-white border-2 border-dashed border-gray-300 text-gray-600">
+                Start by clicking any letter to form a word path!
+            </div>
+
+            <!-- Main Content Area: Grid/Controls vs. Word List -->
+            <div class="main-content">
+                
+                <!-- Left Side: Grid and Controls -->
+                <div class="grid-and-controls">
+                    <!-- Game Grid -->
+                    <div id="game-grid">
+                        <!-- Letter cells will be generated here -->
+                    </div>
+
+                    <!-- Current Word Display -->
+                    <div class="bg-indigo-100 p-3 rounded-lg border-2 border-indigo-300 mt-4">
+                        <p class="text-sm font-semibold text-indigo-700 text-center mb-1">Current Path (Min <span id="min-length-display">3</span> Letters)</p>
+                        <div id="current-word" class="current-word-display text-indigo-800"></div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="flex flex-wrap justify-center gap-4 mt-4">
+                        <button id="submit-button" class="button-primary">Check Word</button>
+                        <button id="clear-button" class="button-secondary bg-gray-500 hover:bg-gray-600">Clear Path</button>
+                        <button id="hint-button" class="button-secondary bg-yellow-400 hover:bg-yellow-500 text-yellow-900" title="Deducts 20 points to reveal the first letter and length of an unfound word.">Get Hint (20 pts)</button>
+                    </div>
+                </div>
+
+                <!-- Right Side: Target Words List -->
+                <div class="words-list-section mt-4 lg:mt-0 p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-md">
+                    <h3 class="text-xl font-extrabold text-gray-800 mb-2 border-b pb-1">Words to Find (Total: <span id="possible-word-count-sidebar">0</span>)</h3>
+                    <ul id="target-words-list" class="list-none space-y-1 text-sm max-h-[400px] lg:max-h-[500px] overflow-y-auto">
+                        <!-- Target words will appear here -->
+                    </ul>
+                </div>
+
+            </div>
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // setLogLevel('Debug'); // Uncomment for debugging Firestore
+
         // --- Core Game Data ---
         const GRID_SIZE = 5;
-        const MIN_WORD_LENGTH = 3; 
         const HINT_COST = 20;      
         const TIME_LIMIT_SECONDS = 180; // 3 minutes hard limit
+        const MAX_LEVEL = 50;
         
-        // Massive set of common English words (4-10 letters) to maximize possible words
+        // Word Dictionary (truncated for file size, but functional)
         const DICTIONARY = new Set([
             "ABLE", "ACID", "ACRE", "ACTS", "ADAM", "AGES", "AGREED", "AIRS", "ALIVE", "ALLY",
             "ALONE", "ALSO", "AMONG", "ANGLE", "ANOTHER", "AREA", "ARMY", "ASIDE", "ASSIST", "AWAY",
@@ -329,45 +353,236 @@
         ]);
         const LETTER_FREQUENCIES = "EEEEEEEEEEEEEEEEAAAAAAAASSSRRRTTTIIIINNNNNNDDDDOOOCCLLUUPPMMBBGGHHFFYYKKVVWXZZJQ"; 
 
+        // --- Firebase Global Vars ---
+        let db;
+        let auth;
+        let userId = 'anon_user'; // Default until authenticated
+        let isAuthReady = false;
+
         // --- Game State ---
         let grid = []; 
-        let score = 0;
+        let levelScore = 0; // Score gained in the current level
+        let totalScore = 0; // Total career score
         let selectedPath = []; 
         let currentWord = "";
         let foundWords = new Set();
         let allPossibleWords = new Set(); 
         let isGameActive = false; 
+        let currentLevel = 1;
+        let highestUnlockedLevel = 1; // Loaded from Firestore
 
         // --- Timing State ---
         let timerInterval = null;
         let elapsedSeconds = 0;
         
         // --- DOM Elements ---
+        const levelSelectView = document.getElementById('level-select-view');
+        const gameView = document.getElementById('game-view');
+        const loadingView = document.getElementById('loading-view');
+        const levelGridElement = document.getElementById('level-grid');
+        const levelDetailsBox = document.getElementById('level-details-box');
+
         const gridElement = document.getElementById('game-grid');
         const currentWordElement = document.getElementById('current-word');
-        const scoreElement = document.getElementById('score');
+        const levelScoreElement = document.getElementById('level-score');
+        const totalScoreDisplay = document.getElementById('total-score-display');
+        const highestUnlockedDisplay = document.getElementById('highest-unlocked-display');
         const timerElement = document.getElementById('timer');
         const targetWordsListElement = document.getElementById('target-words-list');
         const wordCountElement = document.getElementById('word-count');
-        const possibleWordCountElement = document.getElementById('possible-word-count');
+        const requiredWordCountElement = document.getElementById('required-word-count');
         const possibleWordCountSidebar = document.getElementById('possible-word-count-sidebar');
+        const minLengthDisplay = document.getElementById('min-length-display');
+        const currentLevelElement = document.getElementById('current-level');
         const messageBox = document.getElementById('message-box');
         const submitButton = document.getElementById('submit-button');
         const clearButton = document.getElementById('clear-button');
         const hintButton = document.getElementById('hint-button');
+        const statusBar = document.getElementById('status-bar');
 
-        // --- Timer Functions ---
+        // --- Firebase Functions ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        function getProgressDocRef() {
+            if (!db || !userId) return null;
+            return doc(db, `artifacts/${appId}/users/${userId}/game_data/pathfinder_progress`);
+        }
 
-        /** Formats total seconds into MM:SS. */
+        async function loadProgress() {
+            try {
+                const docRef = getProgressDocRef();
+                if (!docRef) throw new Error("Firestore not initialized.");
+
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    highestUnlockedLevel = data.highestUnlockedLevel || 1;
+                    totalScore = data.totalScore || 0;
+                    console.log("Progress loaded:", data);
+                } else {
+                    // Initialize new progress for the user
+                    highestUnlockedLevel = 1;
+                    totalScore = 0;
+                    await saveProgress(); 
+                    console.log("New progress initialized.");
+                }
+            } catch (error) {
+                console.error("Error loading progress:", error);
+                // Fallback to defaults
+                highestUnlockedLevel = 1;
+                totalScore = 0;
+            }
+            isAuthReady = true;
+            changeView('level-select');
+            renderLevelSelect(); 
+        }
+
+        async function saveProgress(newLevelWon = false) {
+            if (!isAuthReady) return;
+            const docRef = getProgressDocRef();
+            if (!docRef) return;
+            
+            const dataToSave = {
+                highestUnlockedLevel,
+                totalScore,
+                lastPlayed: new Date().toISOString()
+            };
+
+            try {
+                if (newLevelWon) {
+                    await updateDoc(docRef, dataToSave);
+                } else {
+                    await setDoc(docRef, dataToSave, { merge: true });
+                }
+            } catch (error) {
+                console.error("Error saving progress:", error);
+            }
+        }
+
+        async function initFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                onAuthStateChanged(auth, user => {
+                    if (user) {
+                        userId = user.uid;
+                        loadProgress();
+                    } else {
+                        // Should not happen in Canvas, but fallback
+                        userId = crypto.randomUUID(); 
+                        loadProgress(); 
+                    }
+                });
+
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                // Fail-safe to proceed without persistence
+                isAuthReady = true;
+                changeView('level-select');
+                renderLevelSelect();
+            }
+        }
+
+        // --- View Switching ---
+
+        function changeView(viewName) {
+            loadingView.classList.add('hidden');
+            levelSelectView.classList.add('hidden');
+            gameView.classList.add('hidden');
+
+            if (viewName === 'level-select') {
+                levelSelectView.classList.remove('hidden');
+                // Always re-render select screen when entering it
+                renderLevelSelect(); 
+            } else if (viewName === 'game') {
+                gameView.classList.remove('hidden');
+            } else if (viewName === 'loading') {
+                loadingView.classList.remove('hidden');
+            }
+        }
+
+        // --- Level Selection Functions ---
+
+        function getLevelConfig(level) {
+            const isMaster = level > 0 && level % 5 === 0;
+            
+            return {
+                isMaster: isMaster,
+                // Master levels require min 4 letters, standard levels require min 3
+                minWordLength: isMaster ? 4 : 3, 
+                // Master levels require finding 90% of available words, standard require 70%
+                winPercentage: isMaster ? 0.9 : 0.7,
+                timeLimit: TIME_LIMIT_SECONDS,
+                description: isMaster ? 'Master Challenge: Min 4 letters, 90% words needed.' : 'Standard Challenge: Min 3 letters, 70% words needed.'
+            };
+        }
+
+        function renderLevelSelect() {
+            levelGridElement.innerHTML = '';
+            
+            totalScoreDisplay.textContent = totalScore;
+            highestUnlockedDisplay.textContent = highestUnlockedLevel;
+            
+            for (let i = 1; i <= MAX_LEVEL; i++) {
+                const config = getLevelConfig(i);
+                const isUnlocked = i <= highestUnlockedLevel;
+                const button = document.createElement('button');
+                
+                button.className = `level-button p-2 text-sm transition-all duration-100 ${isUnlocked ? 'unlocked' : ''} ${config.isMaster ? 'master' : ''}`;
+                button.disabled = !isUnlocked;
+                button.dataset.level = i;
+
+                button.innerHTML = `
+                    <span class="text-xs font-normal">Level</span>
+                    <span class="text-2xl">${i}</span>
+                    <span class="text-xs font-normal">${config.isMaster ? 'MASTER' : 'STANDARD'}</span>
+                `;
+                
+                button.addEventListener('click', () => {
+                    // Highlight the clicked level as current and show details
+                    document.querySelectorAll('.level-button').forEach(btn => btn.classList.remove('current-level'));
+                    button.classList.add('current-level');
+                    
+                    levelDetailsBox.innerHTML = `
+                        <p class="text-xl font-extrabold text-indigo-700">Level ${i} (${config.isMaster ? 'MASTER' : 'STANDARD'})</p>
+                        <p class="text-sm text-gray-700">${config.description}</p>
+                        <button id="start-level-${i}" class="button-primary mt-3 text-lg py-2 px-6">Start Challenge</button>
+                    `;
+                    
+                    document.getElementById(`start-level-${i}`).addEventListener('click', () => startGame(i));
+                });
+                
+                levelGridElement.appendChild(button);
+            }
+        }
+        
+        function startGame(level) {
+            currentLevel = level;
+            initGame();
+            changeView('game');
+        }
+
+        // --- Timer Functions (Same as before) ---
         function formatTime(totalSeconds) {
             const minutes = Math.floor(totalSeconds / 60);
             const seconds = totalSeconds % 60;
             return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
         }
 
-        /** Updates the timer display every second and checks for game over. */
         function updateTimerDisplay() {
-            const remainingSeconds = TIME_LIMIT_SECONDS - elapsedSeconds;
+            const config = getLevelConfig(currentLevel);
+            const remainingSeconds = config.timeLimit - elapsedSeconds;
 
             if (remainingSeconds <= 0) {
                 timerElement.textContent = "00:00";
@@ -387,7 +602,6 @@
             elapsedSeconds++;
         }
 
-        /** Starts the stopwatch timer. */
         function startTimer() {
             if (timerInterval) clearInterval(timerInterval);
             elapsedSeconds = 0;
@@ -395,7 +609,6 @@
             timerInterval = setInterval(updateTimerDisplay, 1000);
         }
 
-        /** Stops the stopwatch timer and returns the final time string. */
         function stopTimer() {
             if (timerInterval) {
                 clearInterval(timerInterval);
@@ -403,15 +616,13 @@
             }
         }
 
-        // --- Utility Functions ---
+        // --- Game Logic Functions ---
 
-        /** Generates a random letter based on frequency weights. */
         function getRandomLetter() {
             const index = Math.floor(Math.random() * LETTER_FREQUENCIES.length);
             return LETTER_FREQUENCIES[index];
         }
 
-        /** Creates the initial GRID_SIZE x GRID_SIZE letter grid. */
         function generateGrid() {
             const newGrid = [];
             for (let r = 0; r < GRID_SIZE; r++) {
@@ -426,14 +637,12 @@
             return newGrid;
         }
 
-        /** Checks if two grid positions are adjacent (horizontal, vertical, or diagonal). */
         function isAdjacent(r1, c1, r2, c2) {
             const rowDiff = Math.abs(r1 - r2);
             const colDiff = Math.abs(c1 - c2);
             return (rowDiff <= 1 && colDiff <= 1) && (rowDiff !== 0 || colDiff !== 0);
         }
 
-        /** Displays a message to the user with optional styling. */
         function showMessage(text, type = 'info') {
             messageBox.textContent = text;
             messageBox.className = 'p-2 rounded-lg text-center font-semibold';
@@ -451,6 +660,9 @@
                 case 'win':
                     messageBox.classList.add('bg-indigo-600', 'border-indigo-800', 'text-white', 'font-extrabold');
                     break;
+                case 'master':
+                    messageBox.classList.add('bg-yellow-600', 'border-yellow-800', 'text-white', 'font-extrabold');
+                    break;
                 case 'lose':
                     messageBox.classList.add('bg-red-600', 'border-red-800', 'text-white', 'font-extrabold');
                     break;
@@ -460,7 +672,6 @@
             }
         }
 
-        /** Renders the grid HTML and attaches event listeners. */
         function renderGrid(isActive) {
             gridElement.innerHTML = '';
             for (let r = 0; r < GRID_SIZE; r++) {
@@ -481,10 +692,7 @@
             }
         }
 
-        /**
-         * Depth First Search to find all valid words in the current grid.
-         */
-        function findAllWords(currentGrid) {
+        function findAllWords(currentGrid, minLength) {
             const found = new Set();
             const ROWS = currentGrid.length;
             const COLS = currentGrid[0].length;
@@ -499,7 +707,7 @@
 
                 visited[r][c] = true;
 
-                if (newWord.length >= MIN_WORD_LENGTH && DICTIONARY.has(newWord)) {
+                if (newWord.length >= minLength && DICTIONARY.has(newWord)) {
                     found.add(newWord);
                 }
 
@@ -522,11 +730,9 @@
             return found;
         }
         
-        /** Generates the initial list of target words in the sidebar. */
         function populateTargetWordsList() {
             targetWordsListElement.innerHTML = '';
             const sortedWords = Array.from(allPossibleWords).sort((a, b) => {
-                // Sort primarily by length (longest first), then alphabetically
                 if (b.length !== a.length) {
                     return b.length - a.length;
                 }
@@ -542,7 +748,6 @@
             });
         }
 
-        /** Handles a click on a letter cell. */
         function handleLetterClick(event) {
             if (!isGameActive) return;
 
@@ -559,8 +764,8 @@
                 const lastSelected = selectedPath[selectedPath.length - 1];
                 if (isAdjacent(r, c, lastSelected.row, lastSelected.col)) {
                     if (isAlreadyInPath) {
+                        // Backtracking logic: If clicking the last cell, unselect it.
                         if (r === lastSelected.row && c === lastSelected.col) {
-                            // Backtracking logic
                             const popped = selectedPath.pop();
                             const poppedElement = document.getElementById(grid[popped.row][popped.col].elementId);
                             poppedElement.classList.remove('selected', 'selected-path');
@@ -583,7 +788,6 @@
             }
         }
 
-        /** Internal function to update state and UI when a cell is selected. */
         function selectCell(r, c, letter, cellElement) {
             selectedPath.push({ row: r, col: c });
 
@@ -599,20 +803,63 @@
 
             updateCurrentWord();
         }
+        
+        function processValidWord(word) {
+            const config = getLevelConfig(currentLevel);
 
-        /** Recalculates the current word from the path and updates the display/buttons. */
+            if (!isGameActive || word.length < config.minWordLength || foundWords.has(word) || !DICTIONARY.has(word) || !allPossibleWords.has(word)) {
+                return false; 
+            }
+
+            const points = word.length * 10;
+            levelScore += points;
+            totalScore += points;
+
+            foundWords.add(word);
+
+            levelScoreElement.textContent = levelScore;
+
+            const listItem = document.getElementById(`target-word-${word}`);
+            if (listItem) {
+                listItem.classList.remove('unfound');
+                listItem.classList.add('found');
+                document.getElementById(`status-${word}`).textContent = '✅';
+            }
+
+            showMessage(`FOUND! "${word}" for +${points} points! (Auto-Submitted)`, 'success');
+            wordCountElement.textContent = foundWords.size;
+            
+            clearPath(); 
+
+            checkWinCondition();
+            
+            return true;
+        }
+
+        function attemptAutoSubmit() {
+            const word = currentWord.toUpperCase();
+            const config = getLevelConfig(currentLevel);
+            
+            if (word.length >= config.minWordLength && 
+                DICTIONARY.has(word) && 
+                allPossibleWords.has(word) && 
+                !foundWords.has(word)) {
+                
+                processValidWord(word);
+            }
+        }
+
         function updateCurrentWord() {
             currentWord = selectedPath.map(p => grid[p.row][p.col].letter).join('');
             currentWordElement.textContent = currentWord;
-
-            const isWordLongEnough = currentWord.length >= MIN_WORD_LENGTH;
-            submitButton.disabled = !isWordLongEnough || !isGameActive;
-            submitButton.textContent = isWordLongEnough
-                ? `Submit Word (${currentWord.length})`
-                : `Submit Word (Min ${MIN_WORD_LENGTH} letters)`;
+            
+            submitButton.disabled = !isGameActive; 
+            
+            if (isGameActive && currentWord.length > 0) {
+                attemptAutoSubmit();
+            }
         }
 
-        /** Clears the current word path and resets selection state. */
         function clearPath() {
             if (!isGameActive) return;
             selectedPath.forEach(p => {
@@ -622,58 +869,37 @@
             selectedPath = [];
             currentWord = "";
             currentWordElement.textContent = "";
-            submitButton.disabled = true;
-            submitButton.textContent = `Submit Word (Min ${MIN_WORD_LENGTH} letters)`;
             showMessage("Path cleared. Start a new word!");
         }
 
-        /** Checks the current word and updates score/found words. */
-        function checkWord() {
+        function handleManualSubmission() {
             if (!isGameActive) return;
 
             const word = currentWord.toUpperCase();
+            const config = getLevelConfig(currentLevel);
 
-            if (word.length < MIN_WORD_LENGTH) {
-                showMessage(`Word is too short! Must be at least ${MIN_WORD_LENGTH} letters.`, 'error');
-            } else if (foundWords.has(word)) {
-                showMessage(`"${word}" already found! Look for a different one.`, 'error');
-            } else if (DICTIONARY.has(word) && allPossibleWords.has(word)) {
-                foundWords.add(word);
-                const points = word.length * 10;
-                score += points;
-
-                // UI Updates
-                scoreElement.textContent = score;
-                wordCountElement.textContent = foundWords.size;
-                possibleWordCountElement.textContent = `${foundWords.size} / ${allPossibleWords.size}`;
-
-                // Update the sidebar word list status
-                const listItem = document.getElementById(`target-word-${word}`);
-                if (listItem) {
-                    listItem.classList.remove('unfound');
-                    listItem.classList.add('found');
-                    document.getElementById(`status-${word}`).textContent = '✅';
+            if (word.length < config.minWordLength) {
+                showMessage(`Word is too short! Must be at least ${config.minWordLength} letters for this level.`, 'error');
+                clearPath();
+                return;
+            } 
+            
+            const success = processValidWord(word); 
+            
+            if (!success) {
+                if (foundWords.has(word)) {
+                    showMessage(`"${word}" already found! Look for a different one.`, 'error');
+                } else {
+                    showMessage(`INVALID WORD! "${word}" is not a target word in this grid (min ${config.minWordLength} letters).`, 'error');
                 }
-
-                showMessage(`FOUND! "${word}" for +${points} points!`, 'success');
-                
-                clearPath(); 
-
-                // Check for completion (WIN)
-                if (foundWords.size === allPossibleWords.size) {
-                    endGame(true);
-                }
-
-            } else {
-                showMessage(`INVALID WORD! "${word}" is not in the dictionary or is not possible in this grid.`, 'error');
+                clearPath();
             }
         }
         
-        /** Provides a hint (starting letter and length) at a cost. */
         function giveHint() {
             if (!isGameActive) return;
             
-            if (score < HINT_COST) {
+            if (levelScore < HINT_COST) {
                 showMessage(`You need ${HINT_COST} points to buy a hint! Find more words!`, 'error');
                 return;
             }
@@ -688,8 +914,10 @@
             unfoundWords.sort((a, b) => b.length - a.length); 
             const hintWord = unfoundWords[0];
 
-            score -= HINT_COST;
-            scoreElement.textContent = score;
+            levelScore -= HINT_COST;
+            totalScore -= HINT_COST; // Deduct from total score as well
+            levelScoreElement.textContent = levelScore;
+            saveProgress(); // Save score deduction
 
             showMessage(
                 `Hint used! (${HINT_COST} pts deducted). Unfound Word: Starts with "${hintWord[0]}" and is ${hintWord.length} letters long.`,
@@ -697,81 +925,138 @@
             );
         }
 
-        /** Ends the game (win or lose) and displays final results. */
-        function endGame(didWin) {
-            stopTimer();
-            isGameActive = false;
-            renderGrid(false); // Disable grid interaction
-            submitButton.disabled = true;
-            clearButton.disabled = true;
-            hintButton.disabled = true;
-            timerElement.classList.remove('timer-red');
-
-            const missedWords = Array.from(allPossibleWords).filter(word => !foundWords.has(word));
-            const finalTime = formatTime(elapsedSeconds - 1); // -1 because the clock ticks one too far
-
-            if (didWin) {
-                showMessage(`YOU WON! You found all ${allPossibleWords.size} words in ${finalTime}!`, 'win');
-            } else {
-                // Time ran out
-                const missedCount = missedWords.length;
-                showMessage(`TIME UP! You missed ${missedCount} word${missedCount === 1 ? '' : 's'}. Final Score: ${score}.`, 'lose');
-                
-                // Highlight missed words in the list
-                missedWords.forEach(word => {
-                    const listItem = document.getElementById(`target-word-${word}`);
-                    if (listItem) {
-                        listItem.style.backgroundColor = '#fee2e2'; // Red 100
-                        listItem.style.borderLeft = '4px solid var(--danger-color)';
-                    }
-                });
+        function checkWinCondition() {
+            const config = getLevelConfig(currentLevel);
+            const totalTargetWords = allPossibleWords.size;
+            const requiredWords = Math.ceil(totalTargetWords * config.winPercentage);
+            
+            if (foundWords.size >= requiredWords) {
+                endGame(true);
             }
         }
 
+        async function endGame(didWin) {
+            stopTimer();
+            isGameActive = false;
+            renderGrid(false); 
+            submitButton.disabled = true;
+            clearButton.disabled = true;
+            hintButton.disabled = true;
 
-        /** Initializes or resets the entire game state. */
+            const config = getLevelConfig(currentLevel);
+            const levelType = config.isMaster ? 'Master Level' : 'Level';
+
+            if (didWin) {
+                if (currentLevel === MAX_LEVEL) {
+                     showMessage(`CONGRATULATIONS! You beat the final ${levelType} ${currentLevel}! Total Score: ${totalScore}.`, 'win');
+                } else {
+                    showMessage(`LEVEL COMPLETE! You beat ${levelType} ${currentLevel}!`, config.isMaster ? 'master' : 'win');
+                }
+                
+                // Unlock next level if the current one was the highest unlocked
+                if (currentLevel === highestUnlockedLevel && currentLevel < MAX_LEVEL) {
+                    highestUnlockedLevel++;
+                    await saveProgress(true); // Save new unlocked level
+                } else {
+                    await saveProgress();
+                }
+
+            } else {
+                showMessage(`LEVEL FAILED! You must retry ${levelType} ${currentLevel}. Total Score: ${totalScore}.`, 'lose');
+                await saveProgress(); // Save final score
+            }
+
+            // After a short delay, return to the level select screen
+            setTimeout(() => {
+                changeView('level-select');
+                levelDetailsBox.innerHTML = didWin ? 
+                    `<p class="text-xl font-extrabold text-green-700">Level ${currentLevel} conquered! Select Level ${Math.min(currentLevel + 1, MAX_LEVEL)} or any other level to continue.</p>` :
+                    `<p class="text-xl font-extrabold text-red-700">Failed Level ${currentLevel}. Try again!</p>`;
+            }, 3000); 
+        }
+
         function initGame() {
-            // 1. Generate New Grid
-            grid = generateGrid();
+            const config = getLevelConfig(currentLevel);
+            levelScore = 0; // Reset level score
+
+            // 1. Generate New Grid (with re-try logic for insufficient words)
+            let attemptCount = 0;
+            do {
+                grid = generateGrid();
+                allPossibleWords = findAllWords(grid, config.minWordLength);
+                attemptCount++;
+                if (attemptCount > 5 && currentLevel < MAX_LEVEL && allPossibleWords.size < 10) {
+                    console.warn(`Low word count (${allPossibleWords.size}). Retrying grid generation...`);
+                }
+            } while (allPossibleWords.size < 10 && currentLevel < MAX_LEVEL && attemptCount < 10);
             
-            // 2. Find all possible words (for word count)
-            allPossibleWords = findAllWords(grid);
-            
-            // 3. Reset Game State
-            score = 0;
+            const requiredWords = Math.ceil(allPossibleWords.size * config.winPercentage);
+
+            // 2. Reset Game State
             currentWord = "";
             foundWords = new Set();
             selectedPath = [];
             isGameActive = true;
-
-            // 4. Reset UI
-            scoreElement.textContent = '0';
+            elapsedSeconds = 0;
+            
+            // 3. Reset UI
+            currentLevelElement.textContent = `${currentLevel}`;
+            levelScoreElement.textContent = levelScore; 
             currentWordElement.textContent = '';
             wordCountElement.textContent = '0';
-            possibleWordCountElement.textContent = `0 / ${allPossibleWords.size}`;
+            requiredWordCountElement.textContent = requiredWords;
             possibleWordCountSidebar.textContent = allPossibleWords.size;
-            timerElement.textContent = formatTime(TIME_LIMIT_SECONDS);
-            submitButton.disabled = true;
-            submitButton.textContent = `Submit Word (Min ${MIN_WORD_LENGTH} letters)`;
+            minLengthDisplay.textContent = config.minWordLength;
+            timerElement.textContent = formatTime(config.timeLimit);
+            timerElement.classList.remove('timer-red');
+            
+            // Update status bar for Master Level
+            statusBar.classList.remove('master-level-ui');
+            if (config.isMaster) {
+                statusBar.classList.add('master-level-ui');
+            }
+
+            // Enable buttons
+            submitButton.disabled = false;
             clearButton.disabled = false;
             hintButton.disabled = false;
 
-            showMessage(`Challenge started! Find all ${allPossibleWords.size} words in 3:00.`);
+            const masterMessage = config.isMaster ? 'Master Game! (Min 4 letters)' : `Standard Level. (Min 3 letters)`;
+            showMessage(`Level ${currentLevel} of ${MAX_LEVEL} started! ${masterMessage} Find ${requiredWords} words.`, config.isMaster ? 'master' : 'info');
 
-            // 5. Populate the sidebar list and Render Grid
+            // 4. Populate the sidebar list and Render Grid
             populateTargetWordsList();
             renderGrid(true);
             startTimer();
         }
-
+        
         // --- Event Listeners and Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
-            submitButton.addEventListener('click', checkWord);
+            // Initial view is loading
+            changeView('loading'); 
+            
+            // Setup listeners for Game View
+            submitButton.addEventListener('click', handleManualSubmission);
             clearButton.addEventListener('click', clearPath);
-            document.getElementById('reset-button').addEventListener('click', initGame);
             hintButton.addEventListener('click', giveHint);
+            document.getElementById('back-to-levels-button').addEventListener('click', () => {
+                if (isGameActive) {
+                    // Stop timer and prompt user if they want to quit
+                    stopTimer();
+                    const shouldQuit = confirm("Are you sure you want to quit this level? Your score for this level will be forfeited.");
+                    if (shouldQuit) {
+                         isGameActive = false; // Ensures no further input is processed
+                         changeView('level-select');
+                    } else {
+                        startTimer(); // Resume if they cancel
+                    }
+                } else {
+                    changeView('level-select');
+                }
+            });
 
-            initGame();
+            // Start Firebase Auth/Load process
+            initFirebase();
         });
     </script>
 </body>
