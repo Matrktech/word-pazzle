@@ -3,1063 +3,842 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word Pathfinder Level Challenge</title>
-    <link rel="icon" type="image/x-icon" href="word.png">
+    <title>Typing Cutter Game</title>
+    <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Bungee&display=swap" rel="stylesheet">
-    <style>
-        /* Custom CSS for Game Aesthetics */
-        :root {
-            --primary-color: #6366f1; /* Indigo 500 */
-            --secondary-color: #f59e0b; /* Amber 500 */
-            --background-color: #f6f3f5; /* Gray 100 */
-            --success-color: #10b981; /* Emerald 500 */
-            --danger-color: #ef4444; /* Red 500 */
-        }
 
+    <!-- Firebase Imports - REVERTED TO V11.6.1 -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        // EXPANDED imports for standard authentication: createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, query, collection, getDocs, limit, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Expose Firebase functions globally for use in the main script block
+        window.firebase = {
+            initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
+            // Exposing the new Auth methods
+            createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut,
+            getFirestore, doc, setDoc, query, collection, getDocs, limit, orderBy, setLogLevel
+        };
+    </script>
+    
+    <!-- Use Inter font family -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--background-color);
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            background-color: #f3f4f6;
             min-height: 100vh;
-            padding: 20px;
-        }
-
-        .main-container {
-            max-width: 1200px;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-        }
-
-        .game-container {
-            max-width: 1000px;
-            width: 100%;
-            background: white;
-            border-radius: 1rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            padding: 1.5rem;
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
-        }
-
-        /* Layout adjustment for desktop/tablet */
-        @media (min-width: 1024px) {
-            .main-content {
-                display: flex;
-                gap: 2rem;
-                justify-content: space-between;
-            }
-            .grid-and-controls {
-                flex-grow: 1;
-                max-width: 450px; /* Keep the grid size manageable */
-            }
-            .words-list-section {
-                width: 300px; /* Dedicated width for the word list */
-                min-width: 300px;
-            }
-        }
-
-        /* Level Select specific styles */
-        .level-button {
-            aspect-ratio: 1 / 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
             align-items: center;
+        }
+        .fruit-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        .fruit {
+            position: absolute;
+            background-color: #fef3c7; /* Light yellow background */
+            border-radius: 9999px; /* Fully rounded */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            padding: 0.5rem 1rem;
+            line-height: 1;
             font-size: 1.25rem;
-            font-weight: 700;
-            border-radius: 0.75rem;
-            transition: all 0.2s;
+            font-weight: 600;
+            color: #4b5563; /* Gray text */
+            transition: transform 0.05s ease-out, box-shadow 0.1s ease-in-out;
             cursor: pointer;
-            box-shadow: 0 4px 0 #4b5563;
-            border: 2px solid #4b5563;
-        }
-        .level-button:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 0 #4b5563;
-        }
-        .level-button:active:not(:disabled) {
-            transform: translateY(4px);
-            box-shadow: 0 0 0 #4b5563;
-        }
-        .level-button:disabled {
-            background-color: #e5e7eb;
-            color: #9ca3af;
-            cursor: not-allowed;
-            box-shadow: none;
-            border-color: #9ca3af;
-        }
-        .level-button.unlocked {
-            background-color: var(--primary-color);
-            color: white;
-            box-shadow: 0 4px 0 #4f46e5;
-            border-color: #4f46e5;
-        }
-        .level-button.master {
-            background-color: var(--secondary-color);
-            color: #78350f;
-            box-shadow: 0 4px 0 #d97706;
-            border-color: #d97706;
-        }
-        .level-button.current-level {
-            border: 4px solid var(--danger-color);
-            animation: pulse 1.5s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
-
-        #game-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 8px;
-            background: #d1d5db; 
-            padding: 8px;
-            border-radius: 0.75rem;
-        }
-
-        .letter-cell {
-            aspect-ratio: 1 / 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 2rem; 
-            font-weight: 900; 
-            color: #1f2937; 
-            background-color: #e5e7eb; 
-            border-radius: 0.5rem;
-            cursor: pointer;
-            transition: all 0.15s ease-in-out;
+            z-index: 10;
             user-select: none;
-            box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.1);
         }
-
-        /* Interaction styles for letter cells (unchanged from previous) */
-        .letter-cell.disabled { pointer-events: none; opacity: 0.6; cursor: default; }
-        .letter-cell:hover:not(.selected):not(.disabled) { background-color: #f9fafb; transform: translateY(-2px); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.1); }
-        .selected { background-color: var(--secondary-color) !important; color: white !important; transform: translateY(-4px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); border: 2px solid var(--secondary-color); }
-        .selected-path { background-color: var(--primary-color); color: white !important; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); transform: scale(0.95); }
-
-        /* Styling for buttons */
-        .button-primary { padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 700; transition: all 0.1s; cursor: pointer; background-color: var(--primary-color); color: white; box-shadow: 0 4px #4f46e5, 0 6px 6px rgba(0, 0, 0, 0.15); }
-        .button-primary:active { box-shadow: 0 0 #4f46e5, 0 3px 3px rgba(0, 0, 0, 0.15); transform: translateY(4px); }
-        .button-secondary { background-color: #dc2626; color: white; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 700; transition: all 0.1s; cursor: pointer; }
-        .button-secondary:hover { background-color: #b91c1c; }
-        
-        #message-box { min-height: 2.5rem; padding: 0.5rem; border-radius: 0.5rem; text-align: center; font-weight: 600; }
-        #target-words-list { column-count: 2; list-style: none; padding: 0; }
-        #target-words-list li { font-size: 0.9rem; font-weight: 500; padding: 2px 0; break-inside: avoid; }
-        .found { color: var(--success-color); font-weight: 700; text-decoration: line-through; }
-        .unfound { color: #4b5563; }
-        .timer-red { color: var(--danger-color); }
-        
-        .master-level-ui { background-color: #fef3c7; border-color: #f59e0b !important; }
-
-        /* Responsive adjustments */
-        @media (max-width: 640px) {
-             #target-words-list { column-count: 1; }
+        .fruit-focused {
+            box-shadow: 0 0 0 3px #3b82f6, 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            transform: scale(1.05);
+        }
+        .typed-correct {
+            color: #10b981; /* Green text for correct part */
+            font-weight: 700;
+        }
+        .typed-incorrect {
+            color: #ef4444; /* Red text for incorrect part */
+        }
+        #gameArea {
+            position: relative;
+            background-color: #e5e7eb;
+            width: 100%;
+            max-width: 900px;
+            height: 600px;
+            margin: 0 auto;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        #typingInput {
+            transition: border-color 0.1s;
         }
     </style>
 </head>
 <body class="p-4">
 
-    <div class="main-container">
-
-        <!-- 1. LOADING VIEW -->
-        <div id="loading-view" class="flex flex-col items-center justify-center p-10 bg-white rounded-xl shadow-lg h-[400px] w-[600px]">
-            <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <p class="mt-4 text-xl font-semibold text-gray-700">Loading Game Progress...</p>
+    <!-- Game Header and Status -->
+    <header id="gameHeader" class="w-full max-w-4xl bg-white p-4 rounded-xl shadow-md mb-4 flex justify-between items-center hidden">
+        <div class="flex items-center space-x-6">
+            <h1 class="text-2xl font-bold text-gray-800">Typing Cutter</h1>
+            <div id="scoreDisplay" class="text-lg font-medium text-blue-600">Score: 0</div>
+            <div id="livesDisplay" class="text-lg font-medium text-red-600">Lives: 3</div>
         </div>
+        <button id="pauseButton" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-lg shadow transition duration-150">Pause</button>
+    </header>
 
-        <!-- 2. LEVEL SELECT VIEW -->
-        <div id="level-select-view" class="game-container hidden">
-            <h1 class="text-4xl font-extrabold text-gray-800 text-center mb-4">Word Pathfinder Challenges</h1>
-            <div class="flex flex-wrap justify-between items-center p-3 rounded-xl bg-indigo-50 border-2 border-indigo-300 gap-3 shadow-inner">
-                 <p class="text-lg font-medium text-gray-700">Highest Unlocked Level: <span id="highest-unlocked-display" class="text-indigo-600 font-bold">1</span></p>
-                 <p class="text-lg font-medium text-gray-700">Total Score: <span id="total-score-display" class="text-indigo-600 font-bold">0</span></p>
-            </div>
-            
-            <div id="level-grid" class="grid grid-cols-5 sm:grid-cols-10 gap-3 p-4 bg-gray-50 rounded-lg border">
-                <!-- Level buttons will be generated here -->
-            </div>
-            
-            <div id="level-details-box" class="p-4 bg-white border border-dashed border-gray-300 rounded-lg text-center min-h-[5rem]">
-                <p class="text-lg font-semibold text-gray-600">Select a level to start the challenge!</p>
-            </div>
+    <!-- Game Area -->
+    <main id="gameContainer" class="w-full max-w-4xl mb-4 relative">
+        <div id="gameArea">
+            <!-- Fruits will be appended here -->
         </div>
+        
+        <!-- Game Input and Message Area -->
+        <div class="mt-4 flex flex-col items-center">
+            <input type="text" id="typingInput" class="w-full max-w-md p-4 border-4 border-gray-300 rounded-xl text-2xl text-center focus:outline-none focus:border-blue-500 shadow-xl" placeholder="Start typing the falling word..." autocomplete="off">
+            <div id="messageBox" class="mt-3 text-lg font-semibold text-gray-700 p-2 rounded-lg bg-white shadow"></div>
+        </div>
+    </main>
 
-
-        <!-- 3. GAME VIEW (Existing Game UI) -->
-        <div id="game-view" class="game-container hidden">
+    <!-- Selection Screen & Leaderboard (Hidden initially) -->
+    <section id="selectionScreen" class="w-full max-w-4xl p-6 bg-white rounded-xl shadow-2xl flex flex-col md:flex-row space-y-6 md:space-y-0 md:space-x-8">
+        
+        <!-- Left Column: Game Setup & Auth -->
+        <div class="flex-1 flex flex-col items-center">
+            <h2 class="text-3xl font-extrabold text-gray-900 mb-6 border-b-2 border-blue-500 pb-2">Start Game</h2>
             
-            <!-- Header and Back Button -->
-            <div class="flex justify-between items-center mb-2">
-                <button id="back-to-levels-button" class="button-secondary bg-gray-500 hover:bg-gray-600 text-white text-sm py-2 px-3 flex items-center space-x-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-                    <span>Back to Levels</span>
+            <div class="w-full max-w-sm">
+                <label for="difficultySelect" class="block text-lg font-medium text-gray-700 mb-2">Select Difficulty:</label>
+                <select id="difficultySelect" class="w-full p-3 border border-gray-300 rounded-lg text-lg focus:ring-blue-500 focus:border-blue-500 mb-6">
+                    <option value="easy">Easy (Slower, Shorter Words)</option>
+                    <option value="medium" selected>Medium (Standard Speed & Length)</option>
+                    <option value="hard">Hard (Faster, Longer Words)</option>
+                    <option value="extreme">Extreme (Very Fast, Random)</option>
+                </select>
+
+                <!-- NEW AUTHENTICATION BLOCK -->
+                <div id="authContainer" class="p-4 border border-gray-200 rounded-xl mb-6 bg-white shadow-lg">
+                    <p class="text-sm text-gray-600 mb-3 text-center font-medium" id="authStatusText">Sign in or play anonymously!</p>
+                    
+                    <div id="authInputs">
+                        <input type="email" id="emailInput" placeholder="Email" class="w-full p-2 border border-gray-300 rounded-lg text-base focus:ring-purple-500 focus:border-purple-500 mb-3">
+                        <input type="password" id="passwordInput" placeholder="Password" class="w-full p-2 border border-gray-300 rounded-lg text-base focus:ring-purple-500 focus:border-purple-500 mb-4">
+                        
+                        <div class="flex space-x-2 mb-4">
+                            <button id="loginEmailButton" class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-1 rounded-lg text-sm transition duration-150">
+                                Log In
+                            </button>
+                            <button id="signupEmailButton" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-1 rounded-lg text-sm transition duration-150">
+                                Sign Up
+                            </button>
+                        </div>
+                        
+                        <div class="relative flex items-center justify-center my-4">
+                            <div class="flex-grow border-t border-gray-300"></div>
+                            <span class="flex-shrink mx-4 text-gray-500 text-sm">OR</span>
+                            <div class="flex-grow border-t border-gray-300"></div>
+                        </div>
+
+                        <button id="loginGoogleButton" class="w-full flex items-center justify-center bg-red-500 hover:bg-red-600 text-white font-medium py-2 rounded-lg text-sm transition duration-150 shadow-md">
+                            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path d="M10 0C4.48 0 0 4.48 0 10c0 4.28 2.65 7.92 6.38 9.38L7.5 17.5V11h-2v-2h2V8.5c0-1.92 1.17-2.98 2.89-2.98 0.83 0 1.55 0.06 1.77 0.09V6h-1.18c-0.93 0-1.11 0.44-1.11 1.09V9h2.2l-0.3 2H9v6.5l1.52 1.88c3.73-1.46 6.38-5.1 6.38-9.38C20 4.48 15.52 0 10 0zM10 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" clip-rule="evenodd" fill-rule="evenodd"></path></svg>
+                            Sign in with Google
+                        </button>
+                    </div>
+
+                    <div id="loggedInUserDisplay" class="hidden text-center">
+                        <p class="text-base text-gray-800 font-semibold mb-2">Logged in as: <span id="currentUserName" class="text-purple-600"></span></p>
+                        <p class="text-sm text-gray-500 mb-4">(Your scores are saved)</p>
+                        <button id="logoutButton" class="w-full bg-gray-400 hover:bg-gray-500 text-white font-medium py-2 rounded-lg text-sm transition duration-150">
+                            Log Out
+                        </button>
+                    </div>
+                </div>
+                <!-- END NEW AUTHENTICATION BLOCK -->
+
+                <label for="nameInput" class="block text-lg font-medium text-gray-700 mb-2">Display Name (Visible in Leaderboard):</label>
+                <!-- This input is now only for the display name, not authentication -->
+                <input type="text" id="nameInput" placeholder="Player Name" maxlength="20" class="w-full p-3 border border-gray-300 rounded-lg text-lg focus:ring-blue-500 focus:border-blue-500 mb-6">
+
+                <button id="startGameButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg transition duration-150 transform hover:scale-[1.01] text-xl">
+                    Start Game
                 </button>
-                <h1 class="text-3xl font-extrabold text-gray-800">Word Pathfinder</h1>
             </div>
-
-            <!-- Top Status Bar -->
-            <div id="status-bar" class="flex flex-col sm:flex-row justify-between items-center p-3 rounded-xl bg-gray-100 border-2 border-gray-300 gap-3 shadow-inner">
-                <div class="flex items-center space-x-4">
-                    <div class="text-xl font-extrabold text-gray-800">LEVEL: <span id="current-level" class="text-indigo-600 font-mono">1</span>/50</div>
-                </div>
-                
-                <div class="flex items-center space-x-4">
-                    <div class="text-lg font-medium text-gray-700">Found: <span id="word-count" class="text-indigo-600 font-bold">0</span> / <span id="required-word-count" class="font-bold">0</span></div>
-                    <div class="text-xl font-extrabold text-gray-800">TIME: <span id="timer" class="text-red-500 font-mono">03:00</span></div>
-                </div>
-                <div class="text-lg font-medium text-gray-700">Score: <span id="level-score" class="text-indigo-600 font-bold">0</span></div>
+        </div>
+        
+        <!-- Right Column: Leaderboard -->
+        <div class="flex-1">
+            <h2 class="text-3xl font-extrabold text-gray-900 mb-6 border-b-2 border-purple-500 pb-2 text-center">Top 10 High Scores</h2>
+            <div id="leaderboardList" class="space-y-3">
+                <p class="text-center text-gray-500" id="loadingLeaderboard">Loading leaderboard...</p>
+                <!-- High scores will be inserted here -->
             </div>
+        </div>
+    </section>
 
-            <div id="message-box" class="bg-white border-2 border-dashed border-gray-300 text-gray-600">
-                Start by clicking any letter to form a word path!
-            </div>
-
-            <!-- Main Content Area: Grid/Controls vs. Word List -->
-            <div class="main-content">
-                
-                <!-- Left Side: Grid and Controls -->
-                <div class="grid-and-controls">
-                    <!-- Game Grid -->
-                    <div id="game-grid">
-                        <!-- Letter cells will be generated here -->
-                    </div>
-
-                    <!-- Current Word Display -->
-                    <div class="bg-indigo-100 p-3 rounded-lg border-2 border-indigo-300 mt-4">
-                        <p class="text-sm font-semibold text-indigo-700 text-center mb-1">Current Path (Min <span id="min-length-display">3</span> Letters)</p>
-                        <div id="current-word" class="current-word-display text-indigo-800"></div>
-                    </div>
-
-                    <!-- Controls -->
-                    <div class="flex flex-wrap justify-center gap-4 mt-4">
-                        <button id="submit-button" class="button-primary">Check Word</button>
-                        <button id="clear-button" class="button-secondary bg-gray-500 hover:bg-gray-600">Clear Path</button>
-                        <button id="hint-button" class="button-secondary bg-yellow-400 hover:bg-yellow-500 text-yellow-900" title="Deducts 20 points to reveal the first letter and length of an unfound word.">Get Hint (20 pts)</button>
-                    </div>
-                </div>
-
-                <!-- Right Side: Target Words List -->
-                <div class="words-list-section mt-4 lg:mt-0 p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-md">
-                    <h3 class="text-xl font-extrabold text-gray-800 mb-2 border-b pb-1">Words to Find (Total: <span id="possible-word-count-sidebar">0</span>)</h3>
-                    <ul id="target-words-list" class="list-none space-y-1 text-sm max-h-[400px] lg:max-h-[500px] overflow-y-auto">
-                        <!-- Target words will appear here -->
-                    </ul>
-                </div>
-
-            </div>
+    <!-- Modal for Error/Message (Instead of alert()) -->
+    <div id="modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden z-50 transition-opacity duration-300">
+        <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm transform transition-all duration-300 scale-95" role="alert">
+            <h3 id="modalTitle" class="text-xl font-bold mb-3 text-red-600">Error</h3>
+            <p id="modalMessage" class="text-gray-700 mb-4">An error occurred.</p>
+            <button id="modalCloseButton" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 rounded-lg transition duration-150">Close</button>
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    <script>
+        // Use the firebase config provided by the user, although the canvas environment
+        // will typically provide a global __firebase_config variable.
+        const firebaseConfig = {
+          apiKey: "AIzaSyAfF5yossFVfBx9HFAKz2tnGNuZX_79WWI",
+          authDomain: "games-e4152.firebaseapp.com",
+          projectId: "games-e4152",
+          storageBucket: "games-e4152.firebasestorage.app",
+          messagingSenderId: "1020207358463",
+          appId: "1:1020207358463:web:dec5d12311a73c4c5487ca"
+        };
         
-        // setLogLevel('Debug'); // Uncomment for debugging Firestore
-
-        // --- Core Game Data ---
-        const GRID_SIZE = 5;
-        const HINT_COST = 20;      
-        const TIME_LIMIT_SECONDS = 180; // 3 minutes hard limit
-        const MAX_LEVEL = 50;
-        
-        // Word Dictionary (truncated for file size, but functional)
-        const DICTIONARY = new Set([
-            "ABLE", "ACID", "ACRE", "ACTS", "ADAM", "AGES", "AGREED", "AIRS", "ALIVE", "ALLY",
-            "ALONE", "ALSO", "AMONG", "ANGLE", "ANOTHER", "AREA", "ARMY", "ASIDE", "ASSIST", "AWAY",
-            "BABY", "BACK", "BALL", "BANK", "BASE", "BATTLE", "BEAR", "BEAT", "BEAUTY", "BEDS",
-            "BEGAN", "BEING", "BELIEF", "BEST", "BETTER", "BILL", "BIRD", "BITS", "BLACK", "BLOOD",
-            "BLUE", "BOAT", "BODY", "BOOK", "BORN", "BOTH", "BOY", "BREAK", "BRING", "BROAD",
-            "BUILD", "BUNCH", "BURN", "BUTTER", "CALL", "CAME", "CANVAS", "CARE", "CASE", "CATCH",
-            "CAUSE", "CELL", "CENTER", "CHANCE", "CHANGE", "CHARGE", "CHASE", "CHIEF", "CHILD", "CHILL",
-            "CHOOSE", "CITY", "CIVIL", "CLAIM", "CLEAR", "CLOSE", "CLOUD", "CODE", "COLD", "COME",
-            "COMMON", "COMPLETE", "CONTROL", "COOK", "CORNER", "COST", "COULD", "COUNT", "COUNTRY", "COURSE",
-            "COURT", "COVER", "CRASH", "CREATE", "CRIME", "CROSS", "CROWD", "CUP", "CURE", "CUT",
-            "DANGER", "DARK", "DATE", "DAUGHTER", "DAY", "DEAD", "DEAL", "DEAR", "DEATH", "DEBATE",
-            "DECIDE", "DEEP", "DEFENSE", "DEGREE", "DESIGN", "DETAIL", "DEVELOP", "DIE", "DIFFER", "DIGITAL",
-            "DIRECT", "DISTANCE", "DITCH", "DOOR", "DOUBT", "DOWN", "DRAG", "DRAW", "DREAM", "DRINK",
-            "DRIVE", "DROP", "DRY", "EACH", "EARLY", "EARN", "EARTH", "EAST", "EASY", "EDGE",
-            "EFFECT", "EIGHT", "ELECT", "EMPIRE", "END", "ENERGY", "ENGINE", "ENJOY", "ENOUGH", "ENTER",
-            "ENTIRE", "EQUALLY", "ERROR", "EVEN", "EVER", "EVERY", "EXACT", "EXAMPLE", "EXCEPT", "EXIST",
-            "EXPECT", "EYE", "FACE", "FACT", "FAIL", "FALL", "FAMILY", "FAR", "FARM", "FAST",
-            "FATHER", "FEAR", "FEDERAL", "FEEL", "FEW", "FIELD", "FIGHT", "FIGURE", "FILL", "FINAL",
-            "FIND", "FINE", "FINGER", "FIRE", "FIRST", "FISH", "FIVE", "FLAT", "FLIGHT", "FLOOR",
-            "FLY", "FOLLOW", "FOOD", "FOOT", "FORCE", "FOREIGN", "FORM", "FORWARD", "FOUR", "FREE",
-            "FRESH", "FRIEND", "FROM", "FRONT", "FULL", "FUN", "GAME", "GARDEN", "GAS", "GENERAL",
-            "GET", "GIRL", "GIVE", "GLASS", "GOAL", "GOD", "GOLD", "GOOD", "GOVERN", "GREAT",
-            "GREEN", "GROUND", "GROUP", "GROW", "GUN", "GUY", "HABIT", "HALF", "HALL", "HAND",
-            "HANG", "HAPPEN", "HAPPY", "HARD", "HAVE", "HEAD", "HEAR", "HEART", "HEAVY", "HELD",
-            "HELLO", "HELP", "HERE", "HIGH", "HIM", "HISTORY", "HIT", "HOLD", "HOME", "HOPE",
-            "HOTEL", "HOUR", "HOUSE", "HOW", "HUMAN", "HURT", "IDEA", "IF", "IMAGE", "IMPACT",
-            "IMPORT", "INCH", "INCLUDE", "INDEED", "INFO", "INSIDE", "INSTEAD", "IRON", "ISLAND", "ISSUE",
-            "ITEM", "ITSELF", "JACKET", "JOB", "JOIN", "JOKE", "JUDGE", "JUMP", "JUST", "KEEP",
-            "KEY", "KICK", "KID", "KILL", "KIND", "KING", "KNOW", "LACK", "LADY", "LAND",
-            "LANGUAGE", "LARGE", "LAST", "LATE", "LAUGH", "LAW", "LAY", "LEAD", "LEARN", "LEAST",
-            "LEAVE", "LEFT", "LEG", "LEGAL", "LEVEL", "LIE", "LIFE", "LIGHT", "LIKE", "LINE",
-            "LIST", "LITTLE", "LIVE", "LOCAL", "LONG", "LOOK", "LOSE", "LOSS", "LOT", "LOVE",
-            "LOW", "MACHINE", "MAIN", "MAJOR", "MAKE", "MAN", "MANAGE", "MANY", "MARKET", "MARRIED",
-            "MASTER", "MATCH", "MATTER", "MAXIMUM", "MAYBE", "MEAL", "MEAN", "MEET", "MEMBER", "MEMORY",
-            "MENTION", "MESSAGE", "MIDDLE", "MIGHT", "MILE", "MILK", "MILLION", "MIND", "MINE", "MINUTE",
-            "MISS", "MODEL", "MODERN", "MOMENT", "MONEY", "MONTH", "MORE", "MORNING", "MOST", "MOTHER",
-            "MOUNTAIN", "MOUTH", "MOVE", "MUCH", "MUSIC", "MUST", "NAME", "NARROW", "NATION", "NATURE",
-            "NEAR", "NEARLY", "NEED", "NEITHER", "NERVOUS", "NEVER", "NEW", "NEXT", "NICE", "NIGHT",
-            "NINE", "NOBODY", "NOISE", "NONE", "NORMAL", "NORTH", "NOTE", "NOTHING", "NOW", "NUMBER",
-            "OCCUR", "OFFER", "OFFICE", "OH", "OLD", "ONCE", "ONE", "ONLY", "OPEN", "OPERATION",
-            "OPINION", "OPTION", "ORDER", "OTHER", "OUT", "OUTSIDE", "OWN", "OWNER", "PAGE", "PAINT",
-            "PAIR", "PAPER", "PARENT", "PARK", "PART", "PARTY", "PASS", "PAST", "PATH", "PAY",
-            "PEACE", "PEOPLE", "PERFECT", "PERIOD", "PERSON", "PHONE", "PHOTO", "PICK", "PICTURE", "PIECE",
-            "PLACE", "PLAN", "PLAY", "POINT", "POLICE", "POLICY", "POLITICAL", "POOR", "POSITION", "POWER",
-            "PRACTICE", "PREPARE", "PRESENT", "PRESS", "PRETTY", "PRICE", "PRIVATE", "PROBABLY", "PROBLEM", "PROCESS",
-            "PRODUCE", "PROJECT", "PROMPT", "PROVE", "PUBLIC", "PULL", "PUSH", "PUT", "QUALITY", "QUESTION",
-            "QUICK", "QUIET", "QUITE", "RADIO", "RANGE", "RATE", "RATHER", "REACH", "READ", "READY",
-            "REAL", "RECENT", "RECORD", "RED", "REDUCE", "REFLECT", "REGION", "REMOVE", "REPORT", "REQUIRE",
-            "RESEARCH", "RESOURCE", "RESULT", "RETURN", "RICH", "RIGHT", "RING", "RISE", "RIVER", "ROAD",
-            "ROCK", "ROLE", "ROOM", "RULE", "RUN", "SAME", "SAVE", "SAY", "SCENE", "SCHOOL",
-            "SCIENCE", "SCORE", "SEA", "SEASON", "SECOND", "SECRET", "SECTION", "SECURITY", "SEE", "SEEM",
-            "SELL", "SEND", "SENSE", "SERIES", "SERIOUS", "SERVE", "SET", "SEVEN", "SEVERAL", "SHAKE",
-            "SHARE", "SHE", "SHEET", "SHIP", "SHOOT", "SHORT", "SHOT", "SHOULD", "SHOW", "SIDE",
-            "SIGN", "SIMPLE", "SINGLE", "SISTER", "SITE", "SIX", "SIZE", "SKILL", "SKIN", "SMALL",
-            "SMILE", "SO", "SOCIAL", "SOCIETY", "SOLVE", "SOME", "SOMEONE", "SOMETHING", "SOMETIMES", "SON",
-            "SONG", "SOON", "SORRY", "SORT", "SOUND", "SOUTH", "SPACE", "SPEAK", "SPECIAL", "SPEED",
-            "SPEND", "SPORT", "SPRING", "SQUARE", "STAFF", "STAGE", "STAND", "STAR", "START", "STATE",
-            "STAY", "STEP", "STILL", "STOCK", "STONE", "STOP", "STORY", "STREET", "STRONG", "STUDENT",
-            "STUDY", "STYLE", "SUBJECT", "SUCCESS", "SUCH", "SUDDEN", "SUFFER", "SUGGEST", "SUMMER", "SUPPORT",
-            "SURE", "SYSTEM", "TABLE", "TAKE", "TALK", "TASK", "TAX", "TEACH", "TEAM", "TELL",
-            "TEN", "TEND", "TERM", "TEST", "THAN", "THAT", "THEIR", "THEM", "THEN", "THERE",
-            "THESE", "THEY", "THING", "THINK", "THIRD", "THIS", "THOSE", "THOUGH", "THREE", "THROUGH",
-            "THROW", "TODAY", "TOGETHER", "TONIGHT", "TOO", "TOP", "TOTAL", "TOUCH", "TOWN", "TRADE",
-            "TRAIN", "TRAVEL", "TREAT", "TREE", "TRIAL", "TRIBAL", "TROUBLE", "TRUE", "TRUST", "TRUTH",
-            "TRY", "TURN", "TWO", "TYPE", "UNDER", "UNDERSTAND", "UNION", "UNIT", "UNTIL", "UP",
-            "UPON", "USE", "USUALLY", "VALUE", "VARIOUS", "VERY", "VIDEO", "VIEW", "VISIT", "VOICE",
-            "WAIT", "WALK", "WALL", "WANT", "WAR", "WATCH", "WATER", "WAY", "WE", "WEAR",
-            "WEEK", "WEIGHT", "WELL", "WEST", "WHAT", "WHATEVER", "WHEN", "WHERE", "WHICH", "WHILE",
-            "WHITE", "WHO", "WHOLE", "WHY", "WILL", "WIND", "WINDOW", "WISH", "WITH", "WITHIN",
-            "WITHOUT", "WOMAN", "WONDER", "WORD", "WORK", "WORLD", "WORRY", "WORTH", "WOULD", "WRITE",
-            "WRONG", "YARD", "YES", "YET", "YOU", "YOUNG", "YOUR", "YOURSELF", "ZERO", "ZONES"
-        ]);
-        const LETTER_FREQUENCIES = "EEEEEEEEEEEEEEEEAAAAAAAASSSRRRTTTIIIINNNNNNDDDDOOOCCLLUUPPMMBBGGHHFFYYKKVVWXZZJQ"; 
-
-        // --- Firebase Global Vars ---
-        let db;
-        let auth;
-        let userId = 'anon_user'; // Default until authenticated
-        let isAuthReady = false;
-
-        // --- Game State ---
-        let grid = []; 
-        let levelScore = 0; // Score gained in the current level
-        let totalScore = 0; // Total career score
-        let selectedPath = []; 
-        let currentWord = "";
-        let foundWords = new Set();
-        let allPossibleWords = new Set(); 
-        let isGameActive = false; 
-        let currentLevel = 1;
-        let highestUnlockedLevel = 1; // Loaded from Firestore
-
-        // --- Timing State ---
-        let timerInterval = null;
-        let elapsedSeconds = 0;
-        
-        // --- DOM Elements ---
-        const levelSelectView = document.getElementById('level-select-view');
-        const gameView = document.getElementById('game-view');
-        const loadingView = document.getElementById('loading-view');
-        const levelGridElement = document.getElementById('level-grid');
-        const levelDetailsBox = document.getElementById('level-details-box');
-
-        const gridElement = document.getElementById('game-grid');
-        const currentWordElement = document.getElementById('current-word');
-        const levelScoreElement = document.getElementById('level-score');
-        const totalScoreDisplay = document.getElementById('total-score-display');
-        const highestUnlockedDisplay = document.getElementById('highest-unlocked-display');
-        const timerElement = document.getElementById('timer');
-        const targetWordsListElement = document.getElementById('target-words-list');
-        const wordCountElement = document.getElementById('word-count');
-        const requiredWordCountElement = document.getElementById('required-word-count');
-        const possibleWordCountSidebar = document.getElementById('possible-word-count-sidebar');
-        const minLengthDisplay = document.getElementById('min-length-display');
-        const currentLevelElement = document.getElementById('current-level');
-        const messageBox = document.getElementById('message-box');
-        const submitButton = document.getElementById('submit-button');
-        const clearButton = document.getElementById('clear-button');
-        const hintButton = document.getElementById('hint-button');
-        const statusBar = document.getElementById('status-bar');
-
-        // --- Firebase Functions ---
+        // Environment variables for Firebase setup
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        function getProgressDocRef() {
-            if (!db || !userId) return null;
-            return doc(db, `artifacts/${appId}/users/${userId}/game_data/pathfinder_progress`);
+        // Prioritize the environment variable if available, otherwise use the hardcoded config.
+        const effectiveFirebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : JSON.stringify(firebaseConfig));
+
+        let db, auth;
+        let userId = 'anonymous'; // Default ID
+        let userName = 'Anonymous Player'; // Default name
+
+        let gameState = {
+            isRunning: false,
+            score: 0,
+            lives: 3,
+            difficulty: 'medium',
+            level: 1,
+            timeElapsed: 0,
+            wordsTyped: 0,
+            spawnRate: 1500, // milliseconds
+            dropSpeed: 1, // pixels per frame
+            fruits: [],
+            lastSpawnTime: 0,
+            gameAreaWidth: 0,
+            gameAreaHeight: 0
+        };
+
+        let isPaused = false;
+        let animationFrameId;
+
+        const FRUIT_WORDS = ['apple', 'banana', 'cherry', 'grape', 'lemon', 'mango', 'orange', 'pear', 'plum', 'kiwi', 'lime', 'melon', 'apricot', 'peach', 'guava', 'fig', 'berry'];
+        const GAME_OVER_WORDS = ['FAIL', 'CRASH', 'GAMEOVER', 'LOST', 'FADE']; // Words for when the game ends
+
+        // DOM elements
+        const gameArea = document.getElementById('gameArea');
+        const typingInput = document.getElementById('typingInput');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const livesDisplay = document.getElementById('livesDisplay');
+        const messageBox = document.getElementById('messageBox');
+        const selectionScreen = document.getElementById('selectionScreen');
+        const gameContainer = document.getElementById('gameContainer');
+        const gameHeader = document.getElementById('gameHeader');
+        const nameInput = document.getElementById('nameInput');
+        const startGameButton = document.getElementById('startGameButton');
+        const difficultySelect = document.getElementById('difficultySelect');
+        const pauseButton = document.getElementById('pauseButton');
+        const leaderboardList = document.getElementById('leaderboardList');
+        const loadingLeaderboard = document.getElementById('loadingLeaderboard');
+
+        // Modal elements
+        const modal = document.getElementById('modal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalCloseButton = document.getElementById('modalCloseButton');
+
+        // New Auth elements
+        const emailInput = document.getElementById('emailInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const loginEmailButton = document.getElementById('loginEmailButton');
+        const signupEmailButton = document.getElementById('signupEmailButton');
+        const loginGoogleButton = document.getElementById('loginGoogleButton');
+        const logoutButton = document.getElementById('logoutButton');
+        const authStatusText = document.getElementById('authStatusText');
+        const authInputs = document.getElementById('authInputs');
+        const loggedInUserDisplay = document.getElementById('loggedInUserDisplay');
+        const currentUserNameSpan = document.getElementById('currentUserName');
+
+
+        // --- Utility Functions ---
+
+        function showModal(title, message, isError = true) {
+            modalTitle.textContent = title;
+            modalTitle.classList.toggle('text-red-600', isError);
+            modalTitle.classList.toggle('text-green-600', !isError);
+            modalMessage.textContent = message;
+            modal.classList.remove('hidden');
         }
 
-        async function loadProgress() {
-            try {
-                const docRef = getProgressDocRef();
-                if (!docRef) throw new Error("Firestore not initialized.");
+        modalCloseButton.addEventListener('click', () => {
+            modal.classList.add('hidden');
+        });
 
-                const docSnap = await getDoc(docRef);
-
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    highestUnlockedLevel = data.highestUnlockedLevel || 1;
-                    totalScore = data.totalScore || 0;
-                    console.log("Progress loaded:", data);
-                } else {
-                    // Initialize new progress for the user
-                    highestUnlockedLevel = 1;
-                    totalScore = 0;
-                    await saveProgress(); 
-                    console.log("New progress initialized.");
-                }
-            } catch (error) {
-                console.error("Error loading progress:", error);
-                // Fallback to defaults
-                highestUnlockedLevel = 1;
-                totalScore = 0;
+        function getRandomWord(difficulty) {
+            let words = FRUIT_WORDS;
+            if (difficulty === 'easy') {
+                words = words.filter(w => w.length <= 5);
+            } else if (difficulty === 'hard') {
+                words = words.filter(w => w.length >= 5);
+            } else if (difficulty === 'extreme') {
+                // Keep all words, speed is the main factor
             }
-            isAuthReady = true;
-            changeView('level-select');
-            renderLevelSelect(); 
+            if (words.length === 0) words = FRUIT_WORDS; // Fallback
+            return words[Math.floor(Math.random() * words.length)];
         }
 
-        async function saveProgress(newLevelWon = false) {
-            if (!isAuthReady) return;
-            const docRef = getProgressDocRef();
-            if (!docRef) return;
+        let fruitIdCounter = 0;
+        function createFruit(word, speedFactor = 1) {
+            const id = fruitIdCounter++;
+            const element = document.createElement('div');
+            element.id = `fruit-${id}`;
+            element.className = 'fruit';
+            element.innerHTML = `<span class="word-display">${word}</span>`;
             
-            const dataToSave = {
-                highestUnlockedLevel,
-                totalScore,
-                lastPlayed: new Date().toISOString()
-            };
-
-            try {
-                if (newLevelWon) {
-                    await updateDoc(docRef, dataToSave);
-                } else {
-                    await setDoc(docRef, dataToSave, { merge: true });
-                }
-            } catch (error) {
-                console.error("Error saving progress:", error);
-            }
-        }
-
-        async function initFirebase() {
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-                
-                onAuthStateChanged(auth, user => {
-                    if (user) {
-                        userId = user.uid;
-                        loadProgress();
-                    } else {
-                        // Should not happen in Canvas, but fallback
-                        userId = crypto.randomUUID(); 
-                        loadProgress(); 
-                    }
-                });
-
-            } catch (error) {
-                console.error("Firebase initialization failed:", error);
-                // Fail-safe to proceed without persistence
-                isAuthReady = true;
-                changeView('level-select');
-                renderLevelSelect();
-            }
-        }
-
-        // --- View Switching ---
-
-        function changeView(viewName) {
-            loadingView.classList.add('hidden');
-            levelSelectView.classList.add('hidden');
-            gameView.classList.add('hidden');
-
-            if (viewName === 'level-select') {
-                levelSelectView.classList.remove('hidden');
-                // Always re-render select screen when entering it
-                renderLevelSelect(); 
-            } else if (viewName === 'game') {
-                gameView.classList.remove('hidden');
-            } else if (viewName === 'loading') {
-                loadingView.classList.remove('hidden');
-            }
-        }
-
-        // --- Level Selection Functions ---
-
-        function getLevelConfig(level) {
-            const isMaster = level > 0 && level % 5 === 0;
+            // Set initial position
+            const width = gameArea.clientWidth;
+            // X position: avoid edges
+            const x = Math.random() * (width - 150) + 75; 
+            const y = -50; // Start above the screen
             
+            element.style.left = `${x}px`;
+            element.style.top = `${y}px`;
+
+            gameArea.appendChild(element);
+
             return {
-                isMaster: isMaster,
-                // Master levels require min 4 letters, standard levels require min 3
-                minWordLength: isMaster ? 4 : 3, 
-                // Master levels require finding 90% of available words, standard require 70%
-                winPercentage: isMaster ? 0.9 : 0.7,
-                timeLimit: TIME_LIMIT_SECONDS,
-                description: isMaster ? 'Master Challenge: Min 4 letters, 90% words needed.' : 'Standard Challenge: Min 3 letters, 70% words needed.'
+                id,
+                word,
+                x,
+                y,
+                speed: gameState.dropSpeed * speedFactor,
+                typed: '',
+                element,
+                width: element.offsetWidth
             };
         }
 
-        function renderLevelSelect() {
-            levelGridElement.innerHTML = '';
-            
-            totalScoreDisplay.textContent = totalScore;
-            highestUnlockedDisplay.textContent = highestUnlockedLevel;
-            
-            for (let i = 1; i <= MAX_LEVEL; i++) {
-                const config = getLevelConfig(i);
-                const isUnlocked = i <= highestUnlockedLevel;
-                const button = document.createElement('button');
-                
-                button.className = `level-button p-2 text-sm transition-all duration-100 ${isUnlocked ? 'unlocked' : ''} ${config.isMaster ? 'master' : ''}`;
-                button.disabled = !isUnlocked;
-                button.dataset.level = i;
+        function updateFruitWordDisplay(fruit) {
+            let html = '';
+            const typed = fruit.typed;
+            const word = fruit.word;
 
-                button.innerHTML = `
-                    <span class="text-xs font-normal">Level</span>
-                    <span class="text-2xl">${i}</span>
-                    <span class="text-xs font-normal">${config.isMaster ? 'MASTER' : 'STANDARD'}</span>
-                `;
+            if (word.startsWith(typed)) {
+                // Correct match
+                html += `<span class="typed-correct">${word.substring(0, typed.length)}</span>`;
+                html += `<span>${word.substring(typed.length)}</span>`;
+            } else if (typed.length > 0) {
+                // Incorrect match: highlight typed part in red
+                let matchLength = 0;
+                while (matchLength < typed.length && matchLength < word.length && typed[matchLength] === word[matchLength]) {
+                    matchLength++;
+                }
                 
-                button.addEventListener('click', () => {
-                    // Highlight the clicked level as current and show details
-                    document.querySelectorAll('.level-button').forEach(btn => btn.classList.remove('current-level'));
-                    button.classList.add('current-level');
-                    
-                    levelDetailsBox.innerHTML = `
-                        <p class="text-xl font-extrabold text-indigo-700">Level ${i} (${config.isMaster ? 'MASTER' : 'STANDARD'})</p>
-                        <p class="text-sm text-gray-700">${config.description}</p>
-                        <button id="start-level-${i}" class="button-primary mt-3 text-lg py-2 px-6">Start Challenge</button>
-                    `;
-                    
-                    document.getElementById(`start-level-${i}`).addEventListener('click', () => startGame(i));
-                });
-                
-                levelGridElement.appendChild(button);
+                html += `<span class="typed-correct">${word.substring(0, matchLength)}</span>`;
+                html += `<span class="typed-incorrect">${word.substring(matchLength, typed.length)}</span>`;
+                html += `<span>${word.substring(typed.length)}</span>`;
+            } else {
+                // Nothing typed
+                html = `<span>${word}</span>`;
+            }
+            
+            fruit.element.querySelector('.word-display').innerHTML = html;
+        }
+
+        // --- Game Logic ---
+
+        function updateDimensions() {
+            gameState.gameAreaWidth = gameArea.clientWidth;
+            gameState.gameAreaHeight = gameArea.clientHeight;
+        }
+
+        function spawnFruit() {
+            if (!gameState.isRunning) return;
+
+            const difficulty = gameState.difficulty;
+            let speedFactor = 1;
+            let spawnRateFactor = 1;
+
+            if (difficulty === 'easy') {
+                speedFactor = 0.8;
+                spawnRateFactor = 1.5;
+            } else if (difficulty === 'hard') {
+                speedFactor = 1.5;
+                spawnRateFactor = 0.8;
+            } else if (difficulty === 'extreme') {
+                speedFactor = 2.0;
+                spawnRateFactor = 0.5;
+            }
+            
+            const now = performance.now();
+            const effectiveSpawnRate = gameState.spawnRate * spawnRateFactor;
+
+            if (now - gameState.lastSpawnTime > effectiveSpawnRate) {
+                const word = getRandomWord(difficulty);
+                const newFruit = createFruit(word, speedFactor);
+                gameState.fruits.push(newFruit);
+                gameState.lastSpawnTime = now;
             }
         }
-        
-        function startGame(level) {
-            currentLevel = level;
-            initGame();
-            changeView('game');
-        }
 
-        // --- Timer Functions (Same as before) ---
-        function formatTime(totalSeconds) {
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-        }
+        function updateGame() {
+            if (!gameState.isRunning || isPaused) return;
 
-        function updateTimerDisplay() {
-            const config = getLevelConfig(currentLevel);
-            const remainingSeconds = config.timeLimit - elapsedSeconds;
+            gameState.timeElapsed += 16; // Approximation for 60 FPS
 
-            if (remainingSeconds <= 0) {
-                timerElement.textContent = "00:00";
-                timerElement.classList.remove('timer-red');
-                endGame(false); // Time's up!
+            // 1. Update fruit positions
+            gameState.fruits.forEach(fruit => {
+                fruit.y += fruit.speed;
+                fruit.element.style.top = `${fruit.y}px`;
+            });
+
+            // 2. Check for missed fruits (out of bounds)
+            const missedFruits = gameState.fruits.filter(fruit => fruit.y > gameState.gameAreaHeight);
+
+            missedFruits.forEach(fruit => {
+                // Only lose a life if it's a real word fruit
+                if (!GAME_OVER_WORDS.includes(fruit.word)) {
+                    gameState.lives--;
+                    messageBox.textContent = 'MISSED! -1 Life';
+                    messageBox.classList.remove('text-gray-700', 'text-green-600');
+                    messageBox.classList.add('text-red-600');
+                    setTimeout(() => messageBox.textContent = '', 500);
+                }
+                gameArea.removeChild(fruit.element);
+            });
+
+            // Remove missed fruits
+            gameState.fruits = gameState.fruits.filter(fruit => fruit.y <= gameState.gameAreaHeight);
+
+            // 3. Update displays
+            livesDisplay.textContent = `Lives: ${gameState.lives}`;
+            scoreDisplay.textContent = `Score: ${gameState.score}`;
+
+            // 4. Game Over Check
+            if (gameState.lives <= 0) {
+                endGame(true);
                 return;
             }
+
+            // 5. Spawn new fruits
+            spawnFruit();
+
+            animationFrameId = requestAnimationFrame(updateGame);
+        }
+
+        function gameLoop() {
+            if (!gameState.isRunning) return;
+            animationFrameId = requestAnimationFrame(updateGame);
+        }
+
+        function startGame() {
+            // Read settings
+            gameState.difficulty = difficultySelect.value;
             
-            timerElement.textContent = formatTime(remainingSeconds);
+            // Set initial state
+            gameState.score = 0;
+            gameState.lives = 3;
+            gameState.timeElapsed = 0;
+            gameState.wordsTyped = 0;
+            gameState.fruits = [];
+            gameState.isRunning = true;
+            isPaused = false;
+            typingInput.value = '';
+            typingInput.focus();
+            
+            // Clear all fruit elements
+            gameArea.innerHTML = ''; 
 
-            if (remainingSeconds <= 30) {
-                timerElement.classList.add('timer-red');
+            // Update UI visibility
+            selectionScreen.classList.add('hidden');
+            gameContainer.classList.remove('hidden');
+            gameHeader.classList.remove('hidden');
+
+            updateDimensions();
+            gameLoop();
+        }
+
+        function endGame(lost) {
+            gameState.isRunning = false;
+            isPaused = true;
+            cancelAnimationFrame(animationFrameId);
+
+            typingInput.value = '';
+            typingInput.blur();
+            
+            // Show Game Over message
+            messageBox.classList.remove('text-gray-700', 'text-green-600');
+            messageBox.classList.add('text-red-600');
+            messageBox.textContent = lost ? 'GAME OVER!' : 'TIME UP!'; 
+
+            // Spawn a final set of game over words
+            GAME_OVER_WORDS.forEach((word, index) => {
+                const fruit = createFruit(word, 0.5); // Slower, just to display
+                fruit.element.style.left = `${100 + index * 150}px`;
+                fruit.element.style.top = `${gameState.gameAreaHeight / 3}px`;
+                fruit.element.style.backgroundColor = '#fca5a5';
+                fruit.element.style.fontSize = '2rem';
+                gameState.fruits.push(fruit);
+            });
+            
+            // Save the score
+            saveHighScore(gameState.score, userName);
+
+            // Show modal and wait for user to close before returning to selection screen
+            showModal('Game Over', `You scored ${gameState.score} points on ${gameState.difficulty} difficulty.`, false);
+            modalCloseButton.onclick = () => {
+                modal.classList.add('hidden');
+                // Return to selection screen
+                gameContainer.classList.add('hidden');
+                gameHeader.classList.add('hidden');
+                selectionScreen.classList.remove('hidden');
+                typingInput.classList.remove('border-red-500', 'border-yellow-500');
+                // Clean up game over words
+                gameState.fruits.forEach(f => gameArea.removeChild(f.element));
+                gameState.fruits = [];
+            }
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            pauseButton.textContent = isPaused ? 'Resume' : 'Pause';
+            if (isPaused) {
+                messageBox.textContent = 'PAUSED';
+                typingInput.blur();
+                cancelAnimationFrame(animationFrameId);
             } else {
-                timerElement.classList.remove('timer-red');
-            }
-
-            elapsedSeconds++;
-        }
-
-        function startTimer() {
-            if (timerInterval) clearInterval(timerInterval);
-            elapsedSeconds = 0;
-            updateTimerDisplay();
-            timerInterval = setInterval(updateTimerDisplay, 1000);
-        }
-
-        function stopTimer() {
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
+                messageBox.textContent = '';
+                typingInput.focus();
+                gameLoop();
             }
         }
+        
+        // --- Firebase/Firestore Logic ---
+        
+        // Firestore paths
+        const getScoresCollectionRef = () => firebase.collection(db, `artifacts/${appId}/public/data/high_scores`);
 
-        // --- Game Logic Functions ---
+        async function saveHighScore(score, name) {
+            if (score <= 0) return;
 
-        function getRandomLetter() {
-            const index = Math.floor(Math.random() * LETTER_FREQUENCIES.length);
-            return LETTER_FREQUENCIES[index];
-        }
+            const scoreData = {
+                userId: userId,
+                name: name,
+                score: score,
+                difficulty: gameState.difficulty,
+                timestamp: firebase.doc.serverTimestamp() // Firestore timestamp
+            };
 
-        function generateGrid() {
-            const newGrid = [];
-            for (let r = 0; r < GRID_SIZE; r++) {
-                newGrid[r] = [];
-                for (let c = 0; c < GRID_SIZE; c++) {
-                    newGrid[r][c] = {
-                        letter: getRandomLetter(),
-                        elementId: `cell-${r}-${c}`
-                    };
-                }
-            }
-            return newGrid;
-        }
-
-        function isAdjacent(r1, c1, r2, c2) {
-            const rowDiff = Math.abs(r1 - r2);
-            const colDiff = Math.abs(c1 - c2);
-            return (rowDiff <= 1 && colDiff <= 1) && (rowDiff !== 0 || colDiff !== 0);
-        }
-
-        function showMessage(text, type = 'info') {
-            messageBox.textContent = text;
-            messageBox.className = 'p-2 rounded-lg text-center font-semibold';
-
-            switch(type) {
-                case 'success':
-                    messageBox.classList.add('bg-green-100', 'border-green-400', 'text-green-700');
-                    break;
-                case 'error':
-                    messageBox.classList.add('bg-red-100', 'border-red-400', 'text-red-700');
-                    break;
-                case 'hint':
-                    messageBox.classList.add('bg-yellow-100', 'border-yellow-400', 'text-yellow-700');
-                    break;
-                case 'win':
-                    messageBox.classList.add('bg-indigo-600', 'border-indigo-800', 'text-white', 'font-extrabold');
-                    break;
-                case 'master':
-                    messageBox.classList.add('bg-yellow-600', 'border-yellow-800', 'text-white', 'font-extrabold');
-                    break;
-                case 'lose':
-                    messageBox.classList.add('bg-red-600', 'border-red-800', 'text-white', 'font-extrabold');
-                    break;
-                default:
-                    messageBox.classList.add('bg-white', 'border-2', 'border-dashed', 'border-gray-300', 'text-gray-600');
-                    break;
+            try {
+                // Add a new document with a generated ID
+                await firebase.addDoc(getScoresCollectionRef(), scoreData);
+                fetchLeaderboard(); // Refresh leaderboard
+                console.log("High score saved successfully.");
+            } catch (error) {
+                console.error("Error saving high score:", error);
             }
         }
 
-        function renderGrid(isActive) {
-            gridElement.innerHTML = '';
-            for (let r = 0; r < GRID_SIZE; r++) {
-                for (let c = 0; c < GRID_SIZE; c++) {
-                    const cell = grid[r][c];
-                    const cellDiv = document.createElement('div');
-                    cellDiv.className = 'letter-cell';
-                    if (!isActive) {
-                         cellDiv.classList.add('disabled');
-                    }
-                    cellDiv.id = cell.elementId;
-                    cellDiv.textContent = cell.letter;
-                    cellDiv.dataset.row = r;
-                    cellDiv.dataset.col = c;
-                    cellDiv.addEventListener('click', handleLetterClick);
-                    gridElement.appendChild(cellDiv);
-                }
-            }
-        }
+        async function fetchLeaderboard() {
+            if (!db) return;
+            loadingLeaderboard.textContent = "Loading leaderboard...";
+            leaderboardList.innerHTML = '';
+            
+            try {
+                const scoresQuery = firebase.query(
+                    getScoresCollectionRef(),
+                    firebase.orderBy('score', 'desc'),
+                    firebase.limit(10)
+                );
+                
+                const querySnapshot = await firebase.getDocs(scoresQuery);
+                const scores = [];
+                querySnapshot.forEach((doc) => {
+                    scores.push(doc.data());
+                });
 
-        function findAllWords(currentGrid, minLength) {
-            const found = new Set();
-            const ROWS = currentGrid.length;
-            const COLS = currentGrid[0].length;
-
-            function search(r, c, word, visited) {
-                if (r < 0 || r >= ROWS || c < 0 || c >= COLS || visited[r][c]) {
+                if (scores.length === 0) {
+                    loadingLeaderboard.textContent = "No scores yet. Be the first!";
                     return;
                 }
-
-                const newWord = word + currentGrid[r][c].letter;
-                if (newWord.length > 10) return;
-
-                visited[r][c] = true;
-
-                if (newWord.length >= minLength && DICTIONARY.has(newWord)) {
-                    found.add(newWord);
-                }
-
-                for (let dr = -1; dr <= 1; dr++) {
-                    for (let dc = -1; dc <= 1; dc++) {
-                        if (dr === 0 && dc === 0) continue;
-                        search(r + dr, c + dc, newWord, visited);
-                    }
-                }
-
-                visited[r][c] = false;
-            }
-
-            for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c < COLS; c++) {
-                    const visited = Array(ROWS).fill(0).map(() => Array(COLS).fill(false)); 
-                    search(r, c, "", visited);
-                }
-            }
-            return found;
-        }
-        
-        function populateTargetWordsList() {
-            targetWordsListElement.innerHTML = '';
-            const sortedWords = Array.from(allPossibleWords).sort((a, b) => {
-                if (b.length !== a.length) {
-                    return b.length - a.length;
-                }
-                return a.localeCompare(b);
-            });
-
-            sortedWords.forEach(word => {
-                const listItem = document.createElement('li');
-                listItem.id = `target-word-${word}`;
-                listItem.className = 'unfound';
-                listItem.innerHTML = `<strong>${word}</strong> (${word.length}) <span id="status-${word}">❌</span>`;
-                targetWordsListElement.appendChild(listItem);
-            });
-        }
-
-        function handleLetterClick(event) {
-            if (!isGameActive) return;
-
-            const cellElement = event.currentTarget;
-            const r = parseInt(cellElement.dataset.row);
-            const c = parseInt(cellElement.dataset.col);
-            const letter = cellElement.textContent;
-            const isAlreadyInPath = selectedPath.some(p => p.row === r && p.col === c);
-
-            if (selectedPath.length === 0) {
-                selectCell(r, c, letter, cellElement);
-                showMessage("Path started. Keep clicking adjacent letters.");
-            } else {
-                const lastSelected = selectedPath[selectedPath.length - 1];
-                if (isAdjacent(r, c, lastSelected.row, lastSelected.col)) {
-                    if (isAlreadyInPath) {
-                        // Backtracking logic: If clicking the last cell, unselect it.
-                        if (r === lastSelected.row && c === lastSelected.col) {
-                            const popped = selectedPath.pop();
-                            const poppedElement = document.getElementById(grid[popped.row][popped.col].elementId);
-                            poppedElement.classList.remove('selected', 'selected-path');
-                            if (selectedPath.length > 0) {
-                                const newLast = selectedPath[selectedPath.length - 1];
-                                document.getElementById(grid[newLast.row][newLast.col].elementId).classList.remove('selected-path');
-                                document.getElementById(grid[newLast.row][newLast.col].elementId).classList.add('selected'); 
-                            }
-                            updateCurrentWord();
-                            return;
-                        }
-                        
-                        showMessage("Letter is already used in this path. Choose a new adjacent letter.", 'error');
-                        return;
-                    }
-                    selectCell(r, c, letter, cellElement);
-                } else {
-                    showMessage("Selection must be adjacent to the last letter!", 'error');
-                }
-            }
-        }
-
-        function selectCell(r, c, letter, cellElement) {
-            selectedPath.push({ row: r, col: c });
-
-            cellElement.classList.remove('selected-path');
-            cellElement.classList.add('selected');
-
-            if (selectedPath.length > 1) {
-                const prevCell = selectedPath[selectedPath.length - 2];
-                const prevElement = document.getElementById(grid[prevCell.row][prevCell.col].elementId);
-                prevElement.classList.remove('selected');
-                prevElement.classList.add('selected-path');
-            }
-
-            updateCurrentWord();
-        }
-        
-        function processValidWord(word) {
-            const config = getLevelConfig(currentLevel);
-
-            if (!isGameActive || word.length < config.minWordLength || foundWords.has(word) || !DICTIONARY.has(word) || !allPossibleWords.has(word)) {
-                return false; 
-            }
-
-            const points = word.length * 10;
-            levelScore += points;
-            totalScore += points;
-
-            foundWords.add(word);
-
-            levelScoreElement.textContent = levelScore;
-
-            const listItem = document.getElementById(`target-word-${word}`);
-            if (listItem) {
-                listItem.classList.remove('unfound');
-                listItem.classList.add('found');
-                document.getElementById(`status-${word}`).textContent = '✅';
-            }
-
-            showMessage(`FOUND! "${word}" for +${points} points! (Auto-Submitted)`, 'success');
-            wordCountElement.textContent = foundWords.size;
-            
-            clearPath(); 
-
-            checkWinCondition();
-            
-            return true;
-        }
-
-        function attemptAutoSubmit() {
-            const word = currentWord.toUpperCase();
-            const config = getLevelConfig(currentLevel);
-            
-            if (word.length >= config.minWordLength && 
-                DICTIONARY.has(word) && 
-                allPossibleWords.has(word) && 
-                !foundWords.has(word)) {
                 
-                processValidWord(word);
-            }
-        }
+                // Clear loading text and populate list
+                loadingLeaderboard.textContent = "";
+                scores.forEach((data, index) => {
+                    const li = document.createElement('div');
+                    li.className = 'flex justify-between items-center p-3 bg-gray-50 rounded-lg shadow-sm';
+                    
+                    const rank = index + 1;
+                    const rankClass = rank === 1 ? 'text-yellow-600' : rank === 2 ? 'text-gray-500' : rank === 3 ? 'text-amber-700' : 'text-gray-700';
 
-        function updateCurrentWord() {
-            currentWord = selectedPath.map(p => grid[p.row][p.col].letter).join('');
-            currentWordElement.textContent = currentWord;
-            
-            submitButton.disabled = !isGameActive; 
-            
-            if (isGameActive && currentWord.length > 0) {
-                attemptAutoSubmit();
-            }
-        }
+                    li.innerHTML = `
+                        <span class="font-extrabold ${rankClass} w-8 text-left">#${rank}</span>
+                        <span class="flex-1 font-semibold text-gray-800 truncate">${data.name}</span>
+                        <span class="text-sm text-gray-500 w-16 text-center">${data.difficulty.charAt(0).toUpperCase() + data.difficulty.slice(1)}</span>
+                        <span class="font-bold text-lg text-blue-600 w-16 text-right">${data.score}</span>
+                    `;
+                    leaderboardList.appendChild(li);
+                });
 
-        function clearPath() {
-            if (!isGameActive) return;
-            selectedPath.forEach(p => {
-                const element = document.getElementById(grid[p.row][p.col].elementId);
-                element.classList.remove('selected', 'selected-path');
-            });
-            selectedPath = [];
-            currentWord = "";
-            currentWordElement.textContent = "";
-            showMessage("Path cleared. Start a new word!");
-        }
-
-        function handleManualSubmission() {
-            if (!isGameActive) return;
-
-            const word = currentWord.toUpperCase();
-            const config = getLevelConfig(currentLevel);
-
-            if (word.length < config.minWordLength) {
-                showMessage(`Word is too short! Must be at least ${config.minWordLength} letters for this level.`, 'error');
-                clearPath();
-                return;
-            } 
-            
-            const success = processValidWord(word); 
-            
-            if (!success) {
-                if (foundWords.has(word)) {
-                    showMessage(`"${word}" already found! Look for a different one.`, 'error');
-                } else {
-                    showMessage(`INVALID WORD! "${word}" is not a target word in this grid (min ${config.minWordLength} letters).`, 'error');
-                }
-                clearPath();
+            } catch (error) {
+                console.error("Error fetching leaderboard:", error);
+                loadingLeaderboard.textContent = "Error loading scores.";
             }
         }
         
-        function giveHint() {
-            if (!isGameActive) return;
-            
-            if (levelScore < HINT_COST) {
-                showMessage(`You need ${HINT_COST} points to buy a hint! Find more words!`, 'error');
-                return;
-            }
-
-            const unfoundWords = Array.from(allPossibleWords).filter(word => !foundWords.has(word));
-
-            if (unfoundWords.length === 0) {
-                showMessage("Amazing! You've found all possible words in this grid!", 'success');
-                return;
-            }
-
-            unfoundWords.sort((a, b) => b.length - a.length); 
-            const hintWord = unfoundWords[0];
-
-            levelScore -= HINT_COST;
-            totalScore -= HINT_COST; // Deduct from total score as well
-            levelScoreElement.textContent = levelScore;
-            saveProgress(); // Save score deduction
-
-            showMessage(
-                `Hint used! (${HINT_COST} pts deducted). Unfound Word: Starts with "${hintWord[0]}" and is ${hintWord.length} letters long.`,
-                'hint'
-            );
-        }
-
-        function checkWinCondition() {
-            const config = getLevelConfig(currentLevel);
-            const totalTargetWords = allPossibleWords.size;
-            const requiredWords = Math.ceil(totalTargetWords * config.winPercentage);
-            
-            if (foundWords.size >= requiredWords) {
-                endGame(true);
-            }
-        }
-
-        async function endGame(didWin) {
-            stopTimer();
-            isGameActive = false;
-            renderGrid(false); 
-            submitButton.disabled = true;
-            clearButton.disabled = true;
-            hintButton.disabled = true;
-
-            const config = getLevelConfig(currentLevel);
-            const levelType = config.isMaster ? 'Master Level' : 'Level';
-
-            if (didWin) {
-                if (currentLevel === MAX_LEVEL) {
-                     showMessage(`CONGRATULATIONS! You beat the final ${levelType} ${currentLevel}! Total Score: ${totalScore}.`, 'win');
-                } else {
-                    showMessage(`LEVEL COMPLETE! You beat ${levelType} ${currentLevel}!`, config.isMaster ? 'master' : 'win');
-                }
+        
+        // --- NEW AUTHENTICATION FUNCTIONS ---
+        
+        // Function to update UI based on user state
+        function updateUIForUser(user) {
+            if (user && !user.isAnonymous) {
+                // Logged In User
+                userId = user.uid;
+                // Prefer user's display name, but allow override by nameInput
+                userName = user.displayName || user.email.split('@')[0] || 'Authenticated User';
+                nameInput.value = userName;
                 
-                // Unlock next level if the current one was the highest unlocked
-                if (currentLevel === highestUnlockedLevel && currentLevel < MAX_LEVEL) {
-                    highestUnlockedLevel++;
-                    await saveProgress(true); // Save new unlocked level
-                } else {
-                    await saveProgress();
-                }
+                currentUserNameSpan.textContent = userName;
+                
+                authStatusText.textContent = `Logged in.`;
+                authInputs.classList.add('hidden');
+                loggedInUserDisplay.classList.remove('hidden');
 
             } else {
-                showMessage(`LEVEL FAILED! You must retry ${levelType} ${currentLevel}. Total Score: ${totalScore}.`, 'lose');
-                await saveProgress(); // Save final score
-            }
+                // Anonymous or Logged Out
+                userId = user ? user.uid : (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `anon-${Math.random().toString(36).substring(2, 9)}`);
+                userName = nameInput.value || 'Anonymous Player';
 
-            // After a short delay, return to the level select screen
-            setTimeout(() => {
-                changeView('level-select');
-                levelDetailsBox.innerHTML = didWin ? 
-                    `<p class="text-xl font-extrabold text-green-700">Level ${currentLevel} conquered! Select Level ${Math.min(currentLevel + 1, MAX_LEVEL)} or any other level to continue.</p>` :
-                    `<p class="text-xl font-extrabold text-red-700">Failed Level ${currentLevel}. Try again!</p>`;
-            }, 3000); 
+                authStatusText.textContent = `Sign in or play anonymously!`;
+                authInputs.classList.remove('hidden');
+                loggedInUserDisplay.classList.add('hidden');
+            }
+            // Ensure the input field reflects the current name for editing
+            nameInput.placeholder = userName; 
+            nameInput.disabled = false; // Allow editing display name
         }
 
-        function initGame() {
-            const config = getLevelConfig(currentLevel);
-            levelScore = 0; // Reset level score
-
-            // 1. Generate New Grid (with re-try logic for insufficient words)
-            let attemptCount = 0;
-            do {
-                grid = generateGrid();
-                allPossibleWords = findAllWords(grid, config.minWordLength);
-                attemptCount++;
-                if (attemptCount > 5 && currentLevel < MAX_LEVEL && allPossibleWords.size < 10) {
-                    console.warn(`Low word count (${allPossibleWords.size}). Retrying grid generation...`);
-                }
-            } while (allPossibleWords.size < 10 && currentLevel < MAX_LEVEL && attemptCount < 10);
-            
-            const requiredWords = Math.ceil(allPossibleWords.size * config.winPercentage);
-
-            // 2. Reset Game State
-            currentWord = "";
-            foundWords = new Set();
-            selectedPath = [];
-            isGameActive = true;
-            elapsedSeconds = 0;
-            
-            // 3. Reset UI
-            currentLevelElement.textContent = `${currentLevel}`;
-            levelScoreElement.textContent = levelScore; 
-            currentWordElement.textContent = '';
-            wordCountElement.textContent = '0';
-            requiredWordCountElement.textContent = requiredWords;
-            possibleWordCountSidebar.textContent = allPossibleWords.size;
-            minLengthDisplay.textContent = config.minWordLength;
-            timerElement.textContent = formatTime(config.timeLimit);
-            timerElement.classList.remove('timer-red');
-            
-            // Update status bar for Master Level
-            statusBar.classList.remove('master-level-ui');
-            if (config.isMaster) {
-                statusBar.classList.add('master-level-ui');
+        // Email/Password Sign Up
+        async function signUpWithEmail() {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            if (!email || password.length < 6) {
+                showModal('Error', 'Please enter a valid email and a password of at least 6 characters.');
+                return;
             }
-
-            // Enable buttons
-            submitButton.disabled = false;
-            clearButton.disabled = false;
-            hintButton.disabled = false;
-
-            const masterMessage = config.isMaster ? 'Master Game! (Min 4 letters)' : `Standard Level. (Min 3 letters)`;
-            showMessage(`Level ${currentLevel} of ${MAX_LEVEL} started! ${masterMessage} Find ${requiredWords} words.`, config.isMaster ? 'master' : 'info');
-
-            // 4. Populate the sidebar list and Render Grid
-            populateTargetWordsList();
-            renderGrid(true);
-            startTimer();
+            try {
+                await firebase.createUserWithEmailAndPassword(auth, email, password);
+                // Auth state change listener handles UI update
+            } catch (error) {
+                showModal('Sign Up Error', error.message);
+            }
         }
         
-        // --- Event Listeners and Initialization ---
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initial view is loading
-            changeView('loading'); 
-            
-            // Setup listeners for Game View
-            submitButton.addEventListener('click', handleManualSubmission);
-            clearButton.addEventListener('click', clearPath);
-            hintButton.addEventListener('click', giveHint);
-            document.getElementById('back-to-levels-button').addEventListener('click', () => {
-                if (isGameActive) {
-                    // Stop timer and prompt user if they want to quit
-                    stopTimer();
-                    const shouldQuit = confirm("Are you sure you want to quit this level? Your score for this level will be forfeited.");
-                    if (shouldQuit) {
-                         isGameActive = false; // Ensures no further input is processed
-                         changeView('level-select');
+        // Email/Password Log In
+        async function loginWithEmail() {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            if (!email || !password) {
+                showModal('Error', 'Please enter both email and password.');
+                return;
+            }
+            try {
+                await firebase.signInWithEmailAndPassword(auth, email, password);
+                // Auth state change listener handles UI update
+            } catch (error) {
+                showModal('Login Error', error.message);
+            }
+        }
+
+        // Google Sign In
+        async function loginWithGoogle() {
+            try {
+                const provider = new firebase.GoogleAuthProvider();
+                await firebase.signInWithPopup(auth, provider);
+                // Auth state change listener handles UI update
+            } catch (error) {
+                showModal('Google Sign-In Error', error.message);
+            }
+        }
+        
+        // Log Out
+        async function userSignOut() {
+            try {
+                await firebase.signOut(auth);
+                // Optional: Sign in anonymously immediately after sign out for continuity
+                await firebase.signInAnonymously(auth); 
+                // Auth state change listener handles UI update
+            } catch (error) {
+                showModal('Logout Error', error.message);
+            }
+        }
+
+
+        // --- Initialization and Setup ---
+
+        async function setupFirebase() {
+            try {
+                const app = firebase.initializeApp(effectiveFirebaseConfig);
+                auth = firebase.getAuth(app);
+                db = firebase.getFirestore(app);
+                firebase.setLogLevel('Debug'); // Enable debug logging
+
+                // 1. Authenticate the user (using custom token if available, otherwise anonymously)
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await firebase.signInWithCustomToken(auth, __initial_auth_token);
+                    console.log("Signed in with custom token.");
+                } else {
+                    // Start with an anonymous user if no custom token exists
+                    await firebase.signInAnonymously(auth);
+                    console.log("Signed in anonymously.");
+                }
+
+                // 2. Auth State Listener
+                // This listener runs every time the user signs in or out.
+                firebase.onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        updateUIForUser(user);
+                        fetchLeaderboard();
                     } else {
-                        startTimer(); // Resume if they cancel
+                        // This should ideally not happen if we always sign in anonymously
+                        updateUIForUser(null);
                     }
-                } else {
-                    changeView('level-select');
-                }
-            });
+                });
 
-            // Start Firebase Auth/Load process
-            initFirebase();
+                // 3. Attach new Auth Event Listeners
+                loginEmailButton.addEventListener('click', loginWithEmail);
+                signupEmailButton.addEventListener('click', signUpWithEmail);
+                loginGoogleButton.addEventListener('click', loginWithGoogle);
+                logoutButton.addEventListener('click', userSignOut);
+                
+                fetchLeaderboard(); // Initial leaderboard load
+                
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                showModal('Setup Error', 'Could not connect to the database. Leaderboard and sign-in features may be unavailable.', true);
+            }
+        }
+
+
+        // --- Event Listeners ---
+
+        startGameButton.addEventListener('click', () => {
+            // Update the global userName before starting the game
+            userName = nameInput.value || 'Anonymous Player'; 
+            if (userName === 'Anonymous Player' && !auth.currentUser.isAnonymous) {
+                 // If a logged-in user clears the name, default to their auth name
+                 userName = auth.currentUser.displayName || auth.currentUser.email.split('@')[0];
+            }
+            startGame();
         });
+        
+        pauseButton.addEventListener('click', togglePause);
+
+        window.addEventListener('keydown', (e) => {
+            // Unpause on any keypress if paused
+            if (isPaused && gameState.isRunning) {
+                if (e.key === 'Escape') return; // Don't unpause on escape key
+                togglePause();
+            }
+        });
+
+        // Main typing input listener
+        typingInput.addEventListener('input', (e) => {
+            if (!gameState.isRunning || isPaused) {
+                typingInput.value = '';
+                return;
+            }
+
+            const input = e.target.value.toLowerCase();
+            typingInput.classList.remove('border-red-500', 'border-yellow-500');
+
+            // Find the best fruit match (prefixed match, then partial match)
+            let currentBestMatch = null;
+            let currentMatchLength = 0;
+
+            // 1. Prioritize perfect prefix match
+            currentBestMatch = gameState.fruits.find(f => f.word.startsWith(input));
+
+            if (currentBestMatch) {
+                // Check if the word is fully typed
+                if (input === currentBestMatch.word) {
+                    // SUCCESS!
+                    
+                    // Update Score
+                    gameState.score += currentBestMatch.word.length * gameState.level;
+                    gameState.wordsTyped++;
+
+                    messageBox.textContent = `CUT: ${currentBestMatch.word.toUpperCase()}`;
+                    messageBox.classList.remove('text-gray-700', 'text-red-600');
+                    messageBox.classList.add('text-green-600');
+                    setTimeout(() => messageBox.textContent = '', 500);
+
+                    // Remove fruit element from DOM
+                    gameArea.removeChild(currentBestMatch.element);
+                    // Remove from game state
+                    gameState.fruits = gameState.fruits.filter(f => f.id !== currentBestMatch.id);
+
+                    // Clear input for next word
+                    typingInput.value = '';
+                    typingInput.classList.remove('border-yellow-500');
+                    
+                    // Remove the focused border immediately
+                    currentBestMatch.element.classList.remove('fruit-focused');
+                    
+                    // The fruit will be filtered out in the next gameLoop
+                } else {
+                     // Partial match, focus on it
+                    gameState.fruits.forEach(f => {
+                        f.typed = (f.id === currentBestMatch.id) ? input : '';
+                        updateFruitWordDisplay(f);
+                        f.element.classList.remove('fruit-focused');
+                    });
+                    currentBestMatch.element.classList.add('fruit-focused');
+
+                    typingInput.classList.add('border-yellow-500'); 
+                }
+
+            } else {
+                // No match, clear all highlights
+                gameState.fruits.forEach(f => {
+                    f.typed = '';
+                    updateFruitWordDisplay(f);
+                    f.element.classList.remove('fruit-focused');
+                });
+                if (input.length > 0) {
+                    typingInput.classList.add('border-red-500'); 
+                }
+            }
+        });
+
+        // Resize listener to keep game bounds correct
+        window.addEventListener('resize', updateDimensions);
+
+        // --- Initialization ---
+        if (typeof firebase !== 'undefined') {
+            setupFirebase();
+        } else {
+            console.error("Firebase SDK not loaded.");
+            showModal('Fatal Error', 'Firebase SDK failed to load. The game cannot start.', true);
+        }
+        
+        // Initially hide the game screen and show the selection screen
+        gameContainer.classList.add('hidden');
+        gameHeader.classList.add('hidden');
+        selectionScreen.classList.remove('hidden');
+
     </script>
 </body>
 </html>
-
